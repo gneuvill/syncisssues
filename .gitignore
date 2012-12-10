@@ -1,0 +1,7 @@
+*target/
+.ensime_lucene/
+.idea/
+*.iml
+*.log
+.ensime
+
