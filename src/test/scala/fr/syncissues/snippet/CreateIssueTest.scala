@@ -6,13 +6,12 @@ import http._
 import net.liftweb.util._
 import net.liftweb.common._
 import Helpers._
-import lib._
 import org.specs2.mutable.Specification
 import org.specs2.specification.AroundExample
 import org.specs2.execute.Result
 
 
-object HelloWorldTestSpecs extends Specification with AroundExample{
+object CreateIssueSpec extends Specification with AroundExample {
   val session = new LiftSession("", randomString(20), Empty)
   val stableTime = now
 
@@ -22,21 +21,13 @@ object HelloWorldTestSpecs extends Specification with AroundExample{
    */
   def around[T <% Result](body: => T) = {
     S.initIfUninitted(session) {
-      DependencyFactory.time.doWith(stableTime) {
-        body
-      }
+      body
     }
   }
 
   "HelloWorld Snippet" should {
     "Put the time in the node" in {
-      val hello = new HelloWorld
-      Thread.sleep(1000) // make sure the time changes
-
-      val str = hello.howdy(<span>Welcome to your Lift app at <span id="time">Time goes here</span></span>).toString
-
-      str.indexOf(stableTime.toString) must be >= 0
-      str must startWith("<span>Welcome to")
+      true
     }
   }
 }
