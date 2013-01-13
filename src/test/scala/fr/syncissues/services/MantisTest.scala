@@ -1,8 +1,9 @@
 package fr.syncissues.services
 
 import org.specs2.mutable.Specification
-import fr.syncissues.services.Mantis._
+import org.specs2.specification.Scope
 import fr.syncissues.beans.Issue
+import java.util.concurrent.TimeUnit
 
 class MantisSpec extends Specification {
 
@@ -11,41 +12,89 @@ class MantisSpec extends Specification {
 
   "Mantis with %s/%s".format(username, password).title
 
+  val mantis = Mantis(username, password, "1")
+
+  lazy val mantisIssue =
+    mantis.issue("1")
+      .claim(4L, TimeUnit.SECONDS)
+      .orSome(Left(new Exception("Time out !")))
+
+  lazy val mantisIssues =
+    mantis.issues
+      .claim(4L, TimeUnit.SECONDS)
+      .orSome(Vector(Left(new Exception("Time out !"))))
+
+  lazy val createdIssue =
+    mantis.createIssue(Issue(title = "CreatedBug1", body = "Created Bug CreatedBug1"))
+      .claim(4L, TimeUnit.SECONDS)
+      .orSome(Left(new Exception("Time out !")))
+
+  lazy val closedIssue =
+    createdIssue.right flatMap (is => mantis.closeIssue(is.copy(state = "closed"))
+      .claim(4L, TimeUnit.SECONDS)
+      .orSome(Left(new Exception("Time out !"))))
+
   "The issue method" should {
-    val mantisIssue = issue(username, password, 1).claim()
 
-    "return an issue" in {
-      mantisIssue isRight
-    }
+    "return an Issue" in {
 
-    "and the right one" in {
+      mantisIssue.isRight aka "and not an error" must beTrue
 
-      "with the right id" in {
-        mantisIssue.right forall (_.number == 1)
-      }
+      mantisIssue.right exists (_.number == 1) aka "with the right id" must beTrue
 
-      "with the right title" in {
-        mantisIssue.right forall (_.title == "Bug1")
-      }
+      mantisIssue.right exists (_.title == "Bug1") aka "with the right title" must beTrue
 
-      "and the right body" in {
-        mantisIssue.right forall (_.body == "TextBug1")
-      }
+      mantisIssue.right exists (_.body == "TextBug1") aka "and the right body" must beTrue
     }
   }
 
   "The issues method" should {
 
-    "return Issue objects" in {
-      false
-    }
+    "return a list of Issues" in {
 
-    "and the right number of them" in {
-      false
+      mantisIssues forall (_.isRight) aka "and not Errors" must beTrue
+
+      mantisIssues.filter(_.isRight).size == 3 aka "and the right number of them" must beTrue
+    }
+  }
+
+  "The createIssue method" should {
+
+    "return an Issue" in {
+
+      createdIssue.isRight aka "and not an error" must beTrue
+
+      createdIssue.right exists (_.number.toString != "") aka "with an id" must beTrue
+    }
+  }
+
+  "The closeIssue method" should {
+
+    "return an issue" in {
+
+      closedIssue.isRight aka "and not an error" must beTrue
+
+      for {
+        cli <- closedIssue.right
+        cri <- createdIssue.right
+      } yield cli.number == cri.number aka "with the right id" must beTrue
+
+      closedIssue.right forall (_.title == "CreatedBug1") aka "with the right title" must beTrue
+
+      closedIssue.right forall (_.body == "Created Bug CreatedBug1") aka "with the right body" must beTrue
+
+      closedIssue.right forall (_.state == "closed") aka "with the right state" must beTrue
     }
   }
   
+  
 }
+
+
+
+
+
+
 
 
 

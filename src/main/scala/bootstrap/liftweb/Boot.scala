@@ -11,6 +11,7 @@ import Loc._
 import net.liftmodules.JQueryModule
 import net.liftweb.http.js.jquery._
 
+import reactive.web.Reactions
 
 /**
  * A class that's instantiated early and run.  It allows the application
@@ -18,17 +19,17 @@ import net.liftweb.http.js.jquery._
  */
 class Boot {
   def boot {
+    // let's use reactive-web
+    Reactions.init(true)
+
     // where to search snippet
     LiftRules.addToPackages("fr.syncissues")
 
     // Build SiteMap
     val entries = List(
-      Menu.i("Home") / "index", // the simple way to declare a menu
-
-      // more complex because this menu allows anything in the
-      // /static path to be visible
-      Menu(Loc("Static", Link(List("static"), true, "/static/index"),
-        "Static Content")))
+      Menu.i("Home") / "index" submenus (
+        Menu("Créer") / "issues" / "create"
+    ))
 
     // set the sitemap.  Note if you don't want access control for
     // each page, just comment this line out.
@@ -50,9 +51,9 @@ class Boot {
       new Html5Properties(r.userAgent))
 
     //Init the jQuery module, see http://liftweb.net/jquery for more information.
-    LiftRules.jsArtifacts = JQueryArtifacts
-    JQueryModule.InitParam.JQuery=JQueryModule.JQuery172
-    JQueryModule.init()
+    // LiftRules.jsArtifacts = JQueryArtifacts
+    // JQueryModule.InitParam.JQuery=JQueryModule.JQuery172
+    // JQueryModule.init()
 
   }
 }

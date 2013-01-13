@@ -1,9 +1,13 @@
 package fr.syncissues.services
 
 import org.specs2.mutable.Specification
-import fr.syncissues.services.IceScrum._
+import org.specs2.specification.Scope
+import net.liftweb.json._
 import dispatch._
 import fr.syncissues.beans.Issue
+import java.util.concurrent.TimeUnit
+import net.liftweb.json.MappingException
+
 
 class IceScrumSpec extends Specification {
 
@@ -11,46 +15,96 @@ class IceScrumSpec extends Specification {
 
   "IceScrum with %s".format(project).title
 
-  "The story method" should {
-    val iscIssue = story(project, "1")()
+  val icescrum = IceScrum("gneuvill", "toto", "TSI")
+
+  lazy val iscIssue =
+    icescrum.issue("1")
+      .claim(2L, TimeUnit.SECONDS)
+      .orSome(Left(new Exception("Time out !")))
+
+  lazy val iscIssues =
+    icescrum.issues
+      .claim(2L, TimeUnit.SECONDS)
+      .orSome(Vector(Left(new Exception("Time out !"))))
+
+  lazy val createdStory =
+    icescrum.createIssue(Issue(title = "CreateStory1", body = "Created Story CreateStory1"))
+      .claim(2L, TimeUnit.SECONDS)
+      .orSome(Left(new Exception("Time out !")))
+
+  lazy val closedStory =
+    createdStory.right flatMap (is => icescrum.closeIssue(is.copy(state = "closed"))
+      .claim(4L, TimeUnit.SECONDS)
+      .orSome(Left(new Exception("Time out !"))))
+
+  // Helpers needed to test the closeIssue method
+  lazy val cisId = createdStory.fold(e => "", _.number.toString)
+  implicit val formats = icescrum.formats
+  lazy val jvalues = Seq(
+    "accept" -> parse(""" {"type": "story"} """),
+    "estimate" -> parse(""" {"story": {"effort": 5}} """),
+    "plan" -> parse(""" {"sprint": {"id": 3}} """)
+  ) map {
+    tuple => Http(url(icescrum.url) / project / "story" / cisId / tuple._1 <:< icescrum.headers << Serialization.write(tuple._2) OK as.lift.Json)()
+  }
+
+
+  "The issue method" should {
 
     "return an Issue" in {
-      iscIssue isRight
-    }
 
-    "and the right one" in {
+      iscIssue.isRight aka "and not an error" must beTrue
 
-      "with the right id" in {
-        iscIssue.right forall (_.number == 1)
-      }
+      iscIssue.right forall (_.number == 1) aka "with the right id" must beTrue
 
-      "and the right title" in {
-        iscIssue.right forall (_.title == "Story1")
-      }
+      iscIssue.right forall (_.title == "Story1") aka "with the right title" must beTrue
 
-      "and the right body" in {
-        iscIssue.right forall (_.body == "Problème1")
-      }
+      iscIssue.right forall (_.body == "Problème1") aka "with the right body" must beTrue
     }
   }
 
-  "The stories method" should {
-    val iscIssues = stories(project)()
+  "The issues method" should {
 
-    "return Issue objects" in {
-      iscIssues map (_.isRight) forall (_ == true)
-    }
+    "return a list of Issues" in {
 
-    "and the right number of them" in {
-      iscIssues.size == 3
+      iscIssues map (_.isRight) forall (_ == true) aka "and not Errors" must beTrue
+
+      iscIssues.size == 3 aka "of the right size" must beTrue
     }
   }
-  
+
+  "The createIssue method" should {
+
+    "return an issue" in {
+
+      createdStory.isRight aka "and not an error" must beTrue
+
+      createdStory.right forall (_.title == "CreateStory1") aka "with the right title" must beTrue
+
+      createdStory.right forall (_.body == "Created Story CreateStory1") aka "with the right body" must beTrue
+
+      jvalues forall (_.isInstanceOf[JValue]) aka "closeIssue prerequisites done" must beTrue
+    }
+  }
+
+  "The closeIssue method" should {
+
+    "return an issue" in {
+
+      jvalues forall (_.isInstanceOf[JValue]) aka "closeIssue prerequisites done" must beTrue
+
+      closedStory.isRight aka "and not an error" must beTrue
+
+      for {
+        cli <- closedStory.right
+        cri <- createdStory.right
+      } yield cli.number == cri.number aka "with the right id" must beTrue
+
+      closedStory.right forall (_.title == "CreateStory1") aka "with the right title" must beTrue
+
+      closedStory.right forall (_.body == "Created Story CreateStory1") aka "with the right body" must beTrue
+
+      closedStory.right forall (_.state == "closed") aka "with the right state" must beTrue
+    }
+  }
 }
-
-
-
-
-
-
-

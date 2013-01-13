@@ -3,14 +3,29 @@ package fr.syncissues.services
 import fr.syncissues._
 import beans.Issue
 import utils.Conversions._
-import dispatch._
+import utils.FJ._
+import dispatch.{Promise => _, url => durl, _}
 import net.liftweb.json._
+import Serialization.write
 import FieldSerializer._
 import net.liftweb.json.CustomSerializer
 
-object IceScrum {
+import fj.control.parallel.Promise
+import Promise._
+import fj.control.parallel.Strategy
+import java.util.concurrent.Executors
 
-  private implicit val formats = DefaultFormats + new CustomSerializer[Issue](formats => (
+case class IceScrum(
+  user: String,
+  password: String,
+  project: String,
+  url: String = "http://localhost:8181/icescrum/ws/p",
+  strategy: Strategy[fj.Unit] = Strategy.executorStrategy[fj.Unit](
+    Executors.newFixedThreadPool(4))) extends IssueService {
+
+  implicit val strat = strategy
+  
+  implicit val formats = DefaultFormats + new CustomSerializer[Issue](formats => (
     {
       case JObject(children) =>
         (for {
@@ -18,32 +33,42 @@ object IceScrum {
           JField("name", JString(name)) <- children
           JField("description", JString(descr)) <- children
           JField("state", JInt(state)) <- children
-        } yield (Issue(id.toInt, if (state == 7) "closed" else "open", name, descr))) head
+        } yield Issue(id.toInt, if (state == 7) "closed" else "open", name, descr)).head
     },
     {
       case Issue(number, state, title, body) =>
-        JObject(List(JField("id", JInt(number)), JField("state", JInt(state.toInt)),
-          JField("name", JString(title)), JField("description", JString(body))))
-    }
-  ))
+        JObject(JField("story", JObject(List(
+          JField("type", JInt(2)),
+          JField("id", JInt(number)),
+          JField("state", JInt(if (state == "closed") 7 else 1)),
+          JField("name", JString(title)),
+          JField("description", JString(body))))) :: Nil)
+    }))
 
-  private val icescrum  = "http://localhost:8181/icescrum/ws/p"
+  val auth = new sun.misc.BASE64Encoder().encode((user + ":" + password).getBytes)
 
-  private val auth = new sun.misc.BASE64Encoder().encode("gneuvill:toto".getBytes())
+  val headers = Map("Content-Type" -> "application/json", "Authorization" -> ("Basic " + auth))
 
-  private val issuesReq = (project: String) => 
-    url(icescrum).addHeader("Content-Type", "application/json").addHeader("Authorization", "Basic " + auth) / project / "story"
+  def issue(id: String) =
+    Http(durl(url) / project / "story" / id <:< headers OK as.lift.Json)
+      .either map (_.right flatMap toIssue)
 
-  def story(project: String, id: String): Promise[Either[MappingException, Issue]] =
-    Http(issuesReq(project) / id OK as.lift.Json) map toIssue
+  def issues = {
+    for {
+      jvalue <- Http(durl(url) / project / "story" <:< headers OK as.lift.Json)
+      JArray(jissues) <- jvalue
+      jissue <- jissues
+      if jissue.children.size > 1 && jissue \\ "state" != JInt(7) // we want correct and opened issues only
+    } yield Http.promise(jissue).either map (_.right flatMap toIssue)
+  } map (Vector() ++ _)
 
-  /**
-    * TODO : find why we have to filter the 'Right' values
-    * 
-    */
-  def stories(project: String): Promise[List[Either[MappingException, Issue]]] =
-    (for {
-      jvalue <- Http(issuesReq(project) OK as.lift.Json)
-      JArray(jissue) <- jvalue
-    } yield (Http.promise(jissue))) map (_.foldLeft(Nil: List[JValue])(_ ++: _) map toIssue) map (_ filter (_ isRight))
+  def createIssue(is: Issue) =
+    Http(durl(url) / project / "story" <:< headers << write(is) OK as.lift.Json)
+      .either map (_.right flatMap toIssue)
+
+  def closeIssue(is: Issue) =
+    Http {
+      (durl(url) / project / "story" / is.number.toString / "done" <:< headers).POST OK as.lift.Json
+    }.either map (_.right flatMap toIssue)
+
 }

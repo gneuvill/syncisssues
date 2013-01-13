@@ -4,4 +4,9 @@
 *.iml
 *.log
 .ensime
+.project
+.settings/
+.worksheet/
+.cache
+.classpath
 
