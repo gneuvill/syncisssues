@@ -25,6 +25,7 @@ libraryDependencies ++= {
     "cc.co.scala-reactive"    %% "reactive-web"            % "0.3.0" excludeAll(ExclusionRule(organization = "net.liftweb")),
     "net.databinder.dispatch" %% "dispatch-core"           % "0.9.4",
     "net.databinder.dispatch" %% "dispatch-lift-json"      % "0.9.4" exclude("net.liftweb", "lift-json_2.9.1"),
+    "org.scalaz"              %% "scalaz-core"             % "7.0.0-M7",
     "org.specs2"              %% "specs2"                  % "1.11"             % "test",
     "org.eclipse.jetty"        % "jetty-webapp"            % "7.5.4.v20111024"  % "container; test",
     "org.functionaljava"       % "functionaljava"          % "3.1",
