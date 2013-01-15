@@ -86,19 +86,3 @@ object CreateIssue {
     "#where" #> (selServices ++ SHtml.hidden(process))
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
