@@ -1,0 +1,13 @@
+github.user=gneuvill
+github.password=v32jSblo
+github.owner=gneuvill
+github.url=https://api.github.com
+
+icescrum.user=gneuvill
+icescrum.password=toto
+icescrum.url=http://localhost:8181/icescrum/ws/p
+
+mantis.user=administrator
+mantis.password=root
+mantis.url=http://localhost/mantisbt-1.2.12/api/soap/mantisconnect.php
+

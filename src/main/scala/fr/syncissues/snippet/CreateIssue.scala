@@ -1,37 +1,35 @@
 package fr.syncissues
 package snippet
 
-import fr.syncissues.services.SyncIsInjector
-import fr.syncissues.services.IssueService
-import fr.syncissues.beans.Issue
-import fr.syncissues.beans.Message
-import fr.syncissues.utils.FJ._
-import fr.syncissues.comet.NotifServer
+import fr.syncissues._
+import services._
+import beans._
+import utils._
+import FJ._
+import comet._
 
 import net.liftweb._
 import http._
 import common._
 import util.Helpers._
+import util.ClearClearable
 import js._
-import net.liftweb.actor.LiftActor
-
+import JE._
 import JsCmds._
+
 import scalaz._
 import Scalaz._
 
-import fj.control.parallel.Actor
-import fj.control.parallel.Strategy
 import java.util.concurrent.Executors
+import fj.control.parallel._
 import fj.Effect
-import fj.control.parallel.Promise
+
+import scala.collection.SeqLike._
 
 object CreateIssue {
 
-  val strat = Strategy.executorStrategy[fj.Unit](
-    Executors.newFixedThreadPool(4))
-
-  implicit def liftActorToFJActor(la: LiftActor) =
-    Actor.actor(strat, new Effect[Message] { def e(m: Message) = la ! m })
+  implicit val strat =
+    Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4))
 
   val github = SyncIsInjector.github.vend
 
@@ -39,50 +37,107 @@ object CreateIssue {
 
   val mantis = SyncIsInjector.mantis.vend
 
+  val availableServs =
+    Seq(github -> "GitHub", icescrum -> "Icescrum", mantis -> "Mantis")
+
+  private object project extends RequestVar("")
+
   private object title extends RequestVar("")
 
   private object descr extends RequestVar("")
 
-  private object services extends RequestVar(List(): List[IssueService])
+  private object services extends RequestVar(List(): Seq[IssueService])
 
-  val selServices = SHtml.multiSelectObj(
-    Seq(github -> "GitHub", icescrum -> "Icescrum", mantis -> "Mantis"),
-    Seq(),
-    services.set)
+  def validServices(ls: Seq[IssueService]) =
+    if (services.size == 0) "Select at least one service".failNel else ls.success
+
+  def validProject(project: String) =
+    if (project == "") "You must choose a project".failNel else project.success
 
   def validTitle(title: String) =
     if (title == "") "Title cannot be empty".failNel else title.success
 
   def validDescr(descr: String) =
-    if (descr == "") "Description shouln't be empty".failNel else descr.success
+    if (descr == "") "Description cannot be empty".failNel else descr.success
 
-  def validServices(ls: List[IssueService]) =
-    if (services.size == 0) "Select at least one service".failNel else ls.success
+  def getProjects(srv: IssueService) =  (srv.projects fmap {
+    (sei: Seq[Either[Throwable, Project]]) => sei map (_ fold (_ => ("", ""), p => (p.name, p.name)))
+  }).claim
 
-  def createIssue(title: String, descr: String, servs: List[IssueService]) =
-    for {
-      s <- servs
-    } yield s.createIssue(Issue(title = title, body = descr))
+  def createIssue( servs: Seq[IssueService], project: String, title: String, descr: String) =
+    servs map (_.createIssue(project, Issue(title = title, body = descr)))
 
-  def showResult(res: Promise[Either[Throwable, Issue]]) = res fmap {
+  def showResult(promise: Promise[Either[Throwable, Issue]]) = promise fmap {
     (ei: Either[Throwable, Issue]) =>
-    ei fold (t => Message(t.getMessage), i => Message(i.title))
+    ei fold (t => ErrorM("", t.getMessage), i => SuccessM("", i.title))
   } to NotifServer
 
   def process() = {
-    val result =
-      (validTitle(title) |@|
-      validDescr(descr) |@|
-      validServices(services)) (createIssue)
+    val result = {
+      validServices(services) |@|
+      validProject(project) |@|
+      validTitle(title) |@|
+      validDescr(descr)
+    } apply createIssue
 
-    result.fold(_.list.foreach(S.error), _ foreach showResult)
+    result fold (_.list foreach (S.error), _ foreach showResult)
 
-    Noop
+    ("title" :: "descr" :: "servs" :: Nil) foreach (SetValById(_, ""))
   }
 
-  def render =
-    "#title" #> SHtml.textElem(title) &
-    "#descr" #> SHtml.textareaElem(descr) &
-    "#where" #> (selServices ++ SHtml.hidden(process))
+  val updateServices = (servs: String) => {
+    val chosenServs = for {
+      str <- servs.split("\\|")
+      (srv, name) <- availableServs
+      if (str == name)
+    } yield srv
+    services.update(_ => chosenServs)
+  }
 
+  def updateProjects(srvs: Seq[IssueService]) = {
+    val allProjects = srvs map getProjects
+    val commonProjects = {
+      for {
+        s1 <- allProjects
+        s2 <- allProjects filter (_ != s1)
+        t1 <- s1
+        t2 <- s2
+        if (t1 == t2)
+      } yield t1
+    }.toSet.toList
+    ReplaceOptions(
+      "project",
+      if (commonProjects.isEmpty)
+        allProjects.flatten.toList
+      else commonProjects,
+      Empty)
+  }
+
+  val servsVal = JsRaw(
+    """Array.prototype.slice.call(this.selectedOptions)
+       .map(function(opt) { return opt.text })
+       .reduce(function(str1, str2){ return str1 + "|" + str2 }, "")""")
+
+  def selServices = SHtml.multiSelectObj(
+    availableServs,
+    Nil,
+    services.set,
+    "id" -> "servs",
+    "onclick" -> {
+      SHtml.ajaxCall(
+        servsVal,
+        updateServices andThen updateProjects)
+    }.toJsCmd)
+
+  def selProjects = SHtml.untrustedSelect(
+    Seq(),
+    Empty,
+    project.set,
+    "id" -> "project")
+
+  def render =
+    "#servs" #> selServices &
+    "#project" #> selProjects &
+    "#title" #> FocusOnLoad(SHtml.textElem(title, "id" -> "title")) &
+    "#descr" #> (SHtml.textareaElem(descr, "id" -> "descr") ++ SHtml.hidden(process))
 }

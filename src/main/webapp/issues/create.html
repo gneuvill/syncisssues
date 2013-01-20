@@ -1,9 +1,10 @@
-<div id="main" class="lift:surround?with=default;at=content">
-  <form class="lift:form.ajax">
-    <div class="lift:CreateIssue">
+<div id="main" data-lift="surround?with=default;at=content">
+  <form data-lift="form.ajax">
+    <div data-lift="CreateIssue">
+      <select multiple id="servs"></select>
+      <select id="project"></select>
       <input id="title"></input>
       <textarea id="descr"></textarea>
-      <select multiple id="where"></select>
       <button id="submit" type="submit">Créer</button>
     </div>
   </form>

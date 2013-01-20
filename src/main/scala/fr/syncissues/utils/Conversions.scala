@@ -1,10 +1,8 @@
 package fr.syncissues.utils
 
-import fr.syncissues.beans.Issue
+import fr.syncissues.beans._
 import net.liftweb.json._
-import net.liftweb.json.MappingException
-import biz.futureware.mantis.rpc.soap.client.IssueData
-import biz.futureware.mantis.rpc.soap.client.ObjectRef
+import biz.futureware.mantis.rpc.soap.client._
 import java.math.BigInteger
 
 object Conversions {
@@ -13,23 +11,28 @@ object Conversions {
 
   implicit def BigIntegerToInt(bi: BigInteger) = bi.intValue
 
-  def toIssue(json: JValue)(implicit format: Formats): Either[Throwable, Issue] =
+  def toBean[T](json: JValue)(implicit format: Formats, mf: Manifest[T]): Either[Throwable, T] =
     try {
-      Right(json.extract[Issue])
+      Right(json.extract[T])
     } catch {
       case e: MappingException => Left(e)
     }
 
-  def toIssue(isData: IssueData): Issue = {
-    Issue(isData.getId, "open", isData.getSummary, isData.getDescription)
-  }
+  def toProject(json: JValue)(implicit format: Formats) = toBean[Project](json)
 
-  def toIssueData(project: String, category: String, is: Issue): IssueData = new IssueData() {
+  def toIssue(json: JValue)(implicit format: Formats) = toBean[Issue](json)
+
+  def toProject(pdata: ProjectData) = Project(pdata.getName)
+
+  def toIssue(isData: IssueData): Issue =
+    Issue(isData.getId, "open", isData.getSummary, isData.getDescription)
+
+  def toIssueData(project: Int, category: String, is: Issue): IssueData = new IssueData() {
     setSummary(is.title)
     setDescription(is.body)
     setStatus(new ObjectRef() { setName(is.state) })
     setCategory(category)
-    setProject(new ObjectRef() { setId(project.toInt) })
+    setProject(new ObjectRef() { setId(project) })
   }
 
 }

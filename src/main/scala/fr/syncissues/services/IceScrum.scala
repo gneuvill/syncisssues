@@ -1,7 +1,7 @@
 package fr.syncissues.services
 
 import fr.syncissues._
-import beans.Issue
+import beans._
 import utils.Conversions._
 import utils.FJ._
 import dispatch.{Promise => _, url => durl, _}
@@ -18,7 +18,6 @@ import java.util.concurrent.Executors
 case class IceScrum(
   user: String,
   password: String,
-  project: String,
   url: String = "http://localhost:8181/icescrum/ws/p",
   strategy: Strategy[fj.Unit] = Strategy.executorStrategy[fj.Unit](
     Executors.newFixedThreadPool(4))) extends IssueService {
@@ -49,11 +48,13 @@ case class IceScrum(
 
   val headers = Map("Content-Type" -> "application/json", "Authorization" -> ("Basic " + auth))
 
-  def issue(id: String) =
+  def projects = promise(strat, Seq(Right(Project("TSI"))))
+
+  def issue(project: String, id: String) =
     Http(durl(url) / project / "story" / id <:< headers OK as.lift.Json)
       .either map (_.right flatMap toIssue)
 
-  def issues = {
+  def issues(project: String) = {
     for {
       jvalue <- Http(durl(url) / project / "story" <:< headers OK as.lift.Json)
       JArray(jissues) <- jvalue
@@ -62,11 +63,11 @@ case class IceScrum(
     } yield Http.promise(jissue).either map (_.right flatMap toIssue)
   } map (Vector() ++ _)
 
-  def createIssue(is: Issue) =
+  def createIssue(project: String, is: Issue) =
     Http(durl(url) / project / "story" <:< headers << write(is) OK as.lift.Json)
       .either map (_.right flatMap toIssue)
 
-  def closeIssue(is: Issue) =
+  def closeIssue(project: String, is: Issue) =
     Http {
       (durl(url) / project / "story" / is.number.toString / "done" <:< headers).POST OK as.lift.Json
     }.either map (_.right flatMap toIssue)

@@ -11,29 +11,26 @@ import Promise._
 import fj.control.parallel.Strategy
 import java.util.concurrent.Executors
 import java.net.URL
-import biz.futureware.mantis.rpc.soap.client.MantisConnectLocator
 import javax.xml.soap.SOAPFault
-import biz.futureware.mantis.rpc.soap.client.IssueData
+import biz.futureware.mantis.rpc.soap.client._
 
 case class Mantis(
   user: String,
   password: String,
-  project: String,
   url: String = "http://localhost/mantisbt-1.2.12/api/soap/mantisconnect.php",
   strategy: Strategy[fj.Unit] =
     Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4))) extends IssueService {
 
-  require(
-    try {
-      project.toInt
-      true
-    } catch {
-      case e: NumberFormatException => false
-    }, "Project Ids are represented by numbers in Mantis !")
-
   private val mantisConnect = new MantisConnectLocator().getMantisConnectPort(new URL(url))
 
-  val cat = mantisConnect.mc_project_get_categories(user, password, project.toInt)(0)
+  private def cat(project: String) = mantisConnect.mc_project_get_categories(user, password, project.toInt)(0)
+
+  private def tryProjects =
+    try {
+      Seq() ++ mantisConnect.mc_projects_get_user_accessible(user, password) map (Right(_))
+    } catch {
+      case e: Exception => Seq(Left(e))
+    }
 
   private def tryIssue(issueId: String) =
     try {
@@ -42,7 +39,7 @@ case class Mantis(
       case e: Exception => Left(e)
     }
 
-  private def tryIssues(pageNb: Int = 1, perPage: Int = 100) =
+  private def tryIssues(project: String, pageNb: Int = 1, perPage: Int = 100) =
     try {
       Vector() ++ (mantisConnect.mc_project_get_issues(
         user, password, project.toInt, pageNb, perPage) map (Right(_)))
@@ -50,36 +47,47 @@ case class Mantis(
       case e: Exception => Vector(Left(e))
     }
 
-  private def tryCreate(is: Issue): Either[Exception, Int] =
+  private def tryCreate(project: String, is: Issue): Either[Exception, Int] =
     try {
-      Right(mantisConnect.mc_issue_add(user, password, toIssueData(project, cat, is)))
+      Right(mantisConnect.mc_issue_add(
+        user,
+        password,
+        toIssueData(project.toInt, cat(project), is)))
     } catch {
       case e: Exception => Left(e)
     }
 
-  private def tryClose(is: Issue): Either[Exception, Issue] = {
+  private def tryClose(project: String, is: Issue): Either[Exception, Issue] = {
     val cli = is.copy(state = "closed")
     try {
-      if (mantisConnect.mc_issue_update(user, password, cli.number, toIssueData(project, cat, cli)))
-        Right(cli)
+      val closed = mantisConnect.mc_issue_update(
+        user,
+        password,
+        cli.number,
+        toIssueData(project.toInt, cat(project), cli))
+      if (closed) Right(cli)
       else Left(new Exception("Issue could not be updated"))
     } catch {
       case e: Exception => Left(e)
     }
   }
 
-  def issue(issueId: String) =
-    promise(strategy, tryIssue(issueId)) fmap ((_: Either[Exception, IssueData]).right map toIssue)
-
-  def issues = promise[Vector[Either[Exception, IssueData]]](strategy, tryIssues()) fmap {
-      l: Vector[Either[Exception, IssueData]] => l map (_.right map toIssue)
+  def projects = promise[Seq[Either[Exception, ProjectData]]](strategy, tryProjects) fmap {
+      l: Seq[Either[Exception, ProjectData]] => l map (_.right map toProject)
     }
 
-  def createIssue(is: Issue) =
-    promise(strategy, tryCreate(is)) fmap {
+  def issue(project: String, issueId: String) =
+    promise(strategy, tryIssue(issueId)) fmap ((_: Either[Exception, IssueData]).right map toIssue)
+
+  def issues(project: String) = promise[Seq[Either[Exception, IssueData]]](strategy, tryIssues(project)) fmap {
+      l: Seq[Either[Exception, IssueData]] => l map (_.right map toIssue)
+    }
+
+  def createIssue(project: String, is: Issue) =
+    promise(strategy, tryCreate(project, is)) fmap {
       (_: Either[Exception, Int]).right map (Issue(_, is.state, is.title, is.body))
     }
 
-  def closeIssue(is: Issue) = promise(strategy, tryClose(is))
+  def closeIssue(project: String, is: Issue) = promise(strategy, tryClose(project, is))
 
 }

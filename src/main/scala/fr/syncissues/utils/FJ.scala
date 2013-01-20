@@ -1,11 +1,10 @@
 package fr.syncissues.utils
 
-import fj.P1
-import fj.F
 import dispatch.Promise
-import fj.control.parallel.{Strategy, Promise => FJPromise}
+import fj.{Unit => FJUnit, _}
+import control.parallel.{Actor, Strategy, Promise => FJPromise}
 import FJPromise._
-import fj.{Unit => FJUnit}
+import net.liftweb.actor.LiftActor
 
 object FJ {
 
@@ -17,23 +16,10 @@ object FJ {
 
   implicit def dispatchPromiseToFJPromise[A](dp: Promise[A])
     (implicit strat: Strategy[FJUnit]): FJPromise[A] =  promise(strat, dp())
+
+  implicit def scalaFToEffect[A](sf: A => Unit): Effect[A] = new Effect[A] { def e(a: A) = sf(a) }
+
+  implicit def liftActorToFJActor[M](la: LiftActor)
+    (implicit strat: Strategy[FJUnit]): Actor[M] = Actor.actor(strat, (m: M) => la ! m )
+
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

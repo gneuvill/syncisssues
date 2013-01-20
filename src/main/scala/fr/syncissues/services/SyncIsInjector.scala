@@ -12,21 +12,18 @@ object SyncIsInjector extends Factory {
     Props.get("github.user", "gneuvill"),
     Props.get("github.password", "toto"),
     Props.get("github.owner", "gneuvill"),
-    "testsync",
-    Props.get("github.url", "https://api.github.com/repos"),
+    Props.get("github.url", "https://api.github.com"),
     Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4)))
 
   def buildIceScrum = IceScrum(
     Props.get("icescrum.user", "gneuvill"),
     Props.get("icescrum.password", "toto"),
-    "TSI",
     Props.get("icescrum.url", "http://localhost:8181/icescrum/ws/p"),
     Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4)))
 
   def buildMantis = Mantis(
     Props.get("mantis.user", "gneuvill"),
     Props.get("mantis.password", "toto"),
-    "1",
     Props.get("mantis.url", "http://localhost/mantisbt-1.2.12/api/soap/mantisconnect.php"),
     Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4)))
 

@@ -63,13 +63,16 @@
       <div class="column span-6 colborder sidebar">
         <hr class="space" >
 
-	<span class="lift:Menu.builder"></span>
+	<span data-lift="Menu.builder"></span>
 
-        <div class="lift:Msgs?showAll=true"></div>
+        <div data-lift="Msgs?showAll=true"></div>
         <hr class="space">
       </div>
 
       <div class="column span-17 last">
+        <ul id="notifs" data-lift="comet?type=NotifClient">
+          <li class="clearable">Notifications</li>
+        </ul>
         <div id="content">The main content will get bound here</div>
       </div>
 
