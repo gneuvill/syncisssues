@@ -72,6 +72,8 @@ case class Mantis(
     }
   }
 
+  implicit val strat = strategy
+
   def projects = promise[Seq[Either[Exception, ProjectData]]](strategy, tryProjects) fmap {
       l: Seq[Either[Exception, ProjectData]] => l map (_.right map toProject)
     }

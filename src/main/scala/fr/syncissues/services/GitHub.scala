@@ -23,7 +23,7 @@ case class GitHub(
 
   private implicit val formats = DefaultFormats
 
-  private implicit val strat = strategy
+  implicit val strat = strategy
 
   private val auth = new sun.misc.BASE64Encoder().encode((user + ":" + password).getBytes())
 

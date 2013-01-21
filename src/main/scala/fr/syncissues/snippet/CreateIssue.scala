@@ -64,8 +64,8 @@ object CreateIssue {
     (sei: Seq[Either[Throwable, Project]]) => sei map (_ fold (_ => ("", ""), p => (p.name, p.name)))
   }).claim
 
-  def createIssue( servs: Seq[IssueService], project: String, title: String, descr: String) =
-    servs map (_.createIssue(project, Issue(title = title, body = descr)))
+  def createIssue(servs: Seq[IssueService], project: String, title: String, descr: String) =
+    servs map (_.createIssue_?(project, Issue(title = title, body = descr)))
 
   def showResult(promise: Promise[Either[Throwable, Issue]]) = promise fmap {
     (ei: Either[Throwable, Issue]) =>
@@ -82,7 +82,9 @@ object CreateIssue {
 
     result fold (_.list foreach (S.error), _ foreach showResult)
 
-    ("title" :: "descr" :: "servs" :: Nil) foreach (SetValById(_, ""))
+    if (result.isSuccess)
+      ("title" :: "descr" :: Nil map (SetValById(_, ""))).fold(Noop) {_ & _}
+    else Noop
   }
 
   val updateServices = (servs: String) => {
