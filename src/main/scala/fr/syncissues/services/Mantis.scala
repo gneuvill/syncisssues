@@ -23,7 +23,9 @@ case class Mantis(
 
   private val mantisConnect = new MantisConnectLocator().getMantisConnectPort(new URL(url))
 
-  private def cat(project: String) = mantisConnect.mc_project_get_categories(user, password, project.toInt)(0)
+  private def cat(project: String) = mantisConnect.mc_project_get_categories(user, password, projectId(project))(0)
+
+  private def projectId(project: String): Int = mantisConnect.mc_project_get_id_from_name(user, password, project)
 
   private def tryProjects =
     try {
@@ -41,8 +43,9 @@ case class Mantis(
 
   private def tryIssues(project: String, pageNb: Int = 1, perPage: Int = 100) =
     try {
+
       Vector() ++ (mantisConnect.mc_project_get_issues(
-        user, password, project.toInt, pageNb, perPage) map (Right(_)))
+        user, password, projectId(project), pageNb, perPage) map (Right(_)))
     } catch {
       case e: Exception => Vector(Left(e))
     }
@@ -52,7 +55,7 @@ case class Mantis(
       Right(mantisConnect.mc_issue_add(
         user,
         password,
-        toIssueData(project.toInt, cat(project), is)))
+        toIssueData(projectId(project), cat(project), is)))
     } catch {
       case e: Exception => Left(e)
     }
@@ -64,7 +67,7 @@ case class Mantis(
         user,
         password,
         cli.number,
-        toIssueData(project.toInt, cat(project), cli))
+        toIssueData(projectId(project), cat(project), cli))
       if (closed) Right(cli)
       else Left(new Exception("Issue could not be updated"))
     } catch {

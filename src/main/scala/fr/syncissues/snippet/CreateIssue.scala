@@ -72,6 +72,9 @@ object CreateIssue {
     ei fold (t => ErrorM("", t.getMessage), i => SuccessM("", i.title))
   } to NotifServer
 
+  def clearForm =
+      ("project" :: "title" :: "descr" :: Nil map (SetValById(_, ""))).fold(Noop) {_ & _}
+
   def process() = {
     val result = {
       validServices(services) |@|
@@ -81,10 +84,6 @@ object CreateIssue {
     } apply createIssue
 
     result fold (_.list foreach (S.error), _ foreach showResult)
-
-    if (result.isSuccess)
-      ("title" :: "descr" :: Nil map (SetValById(_, ""))).fold(Noop) {_ & _}
-    else Noop
   }
 
   val updateServices = (servs: String) => {
@@ -97,22 +96,20 @@ object CreateIssue {
   }
 
   def updateProjects(srvs: Seq[IssueService]) = {
-    val allProjects = srvs map getProjects
-    val commonProjects = {
-      for {
-        s1 <- allProjects
-        s2 <- allProjects filter (_ != s1)
-        t1 <- s1
-        t2 <- s2
-        if (t1 == t2)
-      } yield t1
-    }.toSet.toList
-    ReplaceOptions(
-      "project",
-      if (commonProjects.isEmpty)
-        allProjects.flatten.toList
-      else commonProjects,
-      Empty)
+    val allProjects = (srvs map getProjects).distinct.toList
+    val commonProjects =
+      if (allProjects.size == 1)
+        allProjects.flatten
+      else {
+        for {
+          s1 <- allProjects
+          s2 <- allProjects filter (_ != s1)
+          t1 <- s1
+          t2 <- s2
+          if (t1 == t2)
+        } yield t1
+      }.distinct
+    ReplaceOptions("project", commonProjects, Empty)
   }
 
   val servsVal = JsRaw(
@@ -140,6 +137,7 @@ object CreateIssue {
   def render =
     "#servs" #> selServices &
     "#project" #> selProjects &
+    "#clear" #> SHtml.ajaxButton("Effacer", () => clearForm) &
     "#title" #> FocusOnLoad(SHtml.textElem(title, "id" -> "title")) &
     "#descr" #> (SHtml.textareaElem(descr, "id" -> "descr") ++ SHtml.hidden(process))
 }

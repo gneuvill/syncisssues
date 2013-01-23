@@ -18,6 +18,7 @@ import java.util.concurrent.Executors
 case class IceScrum(
   user: String,
   password: String,
+  team: String,
   url: String = "http://localhost:8181/icescrum/ws/p",
   strategy: Strategy[fj.Unit] = Strategy.executorStrategy[fj.Unit](
     Executors.newFixedThreadPool(4))) extends IssueService {
@@ -48,28 +49,33 @@ case class IceScrum(
 
   val headers = Map("Content-Type" -> "application/json", "Authorization" -> ("Basic " + auth))
 
-  def projects = promise(strat, Seq(Right(Project("TSI"))))
+  def projects = issues("") fmap ((s: Seq[Either[Throwable, Issue]]) =>
+    for {
+      ei <- s
+      is <- ei.right.toSeq
+    } yield Right(Project(is.title takeWhile (_ != ':'))))
 
   def issue(project: String, id: String) =
-    Http(durl(url) / project / "story" / id <:< headers OK as.lift.Json)
+    Http(durl(url) / team / "story" / id <:< headers OK as.lift.Json)
       .either map (_.right flatMap toIssue)
 
   def issues(project: String) = {
     for {
-      jvalue <- Http(durl(url) / project / "story" <:< headers OK as.lift.Json)
+      jvalue <- Http(durl(url) / team / "story" <:< headers OK as.lift.Json)
       JArray(jissues) <- jvalue
       jissue <- jissues
-      if jissue.children.size > 1 && jissue \\ "state" != JInt(7) // we want correct and opened issues only
+      if (jissue.children.size > 1 && jissue \\ "state" != JInt(7)) // we want correct and opened issues only
     } yield Http.promise(jissue).either map (_.right flatMap toIssue)
-  } map (Vector() ++ _)
+  } map (Vector() ++ _ filter (_.right exists (_.title startsWith project)))
 
   def createIssue(project: String, is: Issue) =
-    Http(durl(url) / project / "story" <:< headers << write(is) OK as.lift.Json)
+    Http(durl(url) / team / "story" <:< headers << write(
+      is.copy(title = "%s: %s".format(project, is.title))) OK as.lift.Json)
       .either map (_.right flatMap toIssue)
 
   def closeIssue(project: String, is: Issue) =
     Http {
-      (durl(url) / project / "story" / is.number.toString / "done" <:< headers).POST OK as.lift.Json
+      (durl(url) / team / "story" / is.number.toString / "done" <:< headers).POST OK as.lift.Json
     }.either map (_.right flatMap toIssue)
 
 }

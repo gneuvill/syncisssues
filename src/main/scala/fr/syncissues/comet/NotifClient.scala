@@ -14,13 +14,13 @@ class NotifClient extends CometListener {
 
   def registerWith = NotifServer
 
-  def messageToHtml(m: Message) = m match {
+  private def messageToHtml(m: Message) = m match {
     case SuccessM(idComp, content) => <li class="success clearable">{content}</li>
     case InfoM(idComp, content) => <li class="info clearable">{content}</li>
     case ErrorM(idComp, content) => <li class="error clearable">{content}</li>
   }
 
-  def renderMessages: PartialFunction[List[Message], Unit] = {
+  private def renderMessages: PartialFunction[List[Message], Unit] = {
     case lm => partialUpdate {
       SetHtml("notifs", lm map messageToHtml)
     }

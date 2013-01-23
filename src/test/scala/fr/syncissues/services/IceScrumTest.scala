@@ -11,29 +11,31 @@ import net.liftweb.json.MappingException
 
 class IceScrumSpec extends Specification {
 
-  val project = "TSI"
+  val team = "TSI"
 
-  "IceScrum with %s".format(project).title
+  val project = "testsync"
 
-  val icescrum = IceScrum("gneuvill", "toto", "TSI")
+  "IceScrum with %s".format(team).title
+
+  val icescrum = IceScrum("gneuvill", "toto", team)
 
   lazy val iscIssue =
-    icescrum.issue("1")
+    icescrum.issue(project, "1")
       .claim(2L, TimeUnit.SECONDS)
       .orSome(Left(new Exception("Time out !")))
 
   lazy val iscIssues =
-    icescrum.issues
+    icescrum.issues(project)
       .claim(2L, TimeUnit.SECONDS)
       .orSome(Vector(Left(new Exception("Time out !"))))
 
   lazy val createdStory =
-    icescrum.createIssue(Issue(title = "CreateStory1", body = "Created Story CreateStory1"))
+    icescrum.createIssue(project, Issue(title = "CreateStory1", body = "Created Story CreateStory1"))
       .claim(2L, TimeUnit.SECONDS)
       .orSome(Left(new Exception("Time out !")))
 
   lazy val closedStory =
-    createdStory.right flatMap (is => icescrum.closeIssue(is.copy(state = "closed"))
+    createdStory.right flatMap (is => icescrum.closeIssue(project, is.copy(state = "closed"))
       .claim(4L, TimeUnit.SECONDS)
       .orSome(Left(new Exception("Time out !"))))
 

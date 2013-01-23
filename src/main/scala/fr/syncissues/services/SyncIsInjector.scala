@@ -18,6 +18,7 @@ object SyncIsInjector extends Factory {
   def buildIceScrum = IceScrum(
     Props.get("icescrum.user", "gneuvill"),
     Props.get("icescrum.password", "toto"),
+    Props.get("icescrum.team", "TSI"),
     Props.get("icescrum.url", "http://localhost:8181/icescrum/ws/p"),
     Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4)))
 

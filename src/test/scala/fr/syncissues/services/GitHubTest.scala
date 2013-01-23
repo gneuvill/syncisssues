@@ -13,25 +13,25 @@ class GitHubSpec extends Specification {
 
   "GitHub with %s/%s".format(owner, repo).title
 
-  val github = GitHub("gneuvill", "toto", "gneuvill", "testsync")
+  val github = GitHub(owner, "toto", owner)
 
   lazy val ghIssue =
-    github.issue("23")
+    github.issue(repo, "23")
       .claim(4L, TimeUnit.SECONDS)
       .orSome(Left(new Exception("Time out !")))
 
   lazy val ghIssues =
-    github.issues
+    github.issues(repo)
       .claim(4L, TimeUnit.SECONDS)
       .orSome(Vector(Left(new Exception("Time out !"))))
 
   lazy val createdIssue =
-    github.createIssue(Issue(title = "CreateIssue1", body = "Created Issue CreateIssue1"))
+    github.createIssue(repo, Issue(title = "CreateIssue1", body = "Created Issue CreateIssue1"))
       .claim(4L, TimeUnit.SECONDS)
       .orSome(Left(new Exception("Time out !")))
 
   lazy val closedIssue =
-    createdIssue.right flatMap (is => github.closeIssue(is.copy(state = "closed"))
+    createdIssue.right flatMap (is => github.closeIssue(repo, is.copy(state = "closed"))
       .claim(4L, TimeUnit.SECONDS)
       .orSome(Left(new Exception("Time out !"))))
 
