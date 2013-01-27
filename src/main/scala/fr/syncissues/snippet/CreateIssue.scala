@@ -3,7 +3,7 @@ package snippet
 
 import fr.syncissues._
 import services._
-import beans._
+import model._
 import utils._
 import FJ._
 import comet._
@@ -28,6 +28,8 @@ import scala.collection.SeqLike._
 
 object CreateIssue {
 
+  type IPServ = IssueService with ProjectService
+
   implicit val strat =
     Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4))
 
@@ -40,19 +42,19 @@ object CreateIssue {
   val availableServs =
     Seq(github -> "GitHub", icescrum -> "Icescrum", mantis -> "Mantis")
 
-  private object project extends RequestVar("")
+  private object project extends RequestVar(Project(999999, ""): Project)
 
   private object title extends RequestVar("")
 
   private object descr extends RequestVar("")
 
-  private object services extends RequestVar(List(): Seq[IssueService])
+  private object services extends RequestVar(List(): Seq[IPServ])
 
-  def validServices(ls: Seq[IssueService]) =
+  def validServices(ls: Seq[IPServ]) =
     if (services.size == 0) "Select at least one service".failNel else ls.success
 
-  def validProject(project: String) =
-    if (project == "") "You must choose a project".failNel else project.success
+  def validProject(project: Project) =
+    if (project.name == "") "You must choose a project".failNel else project.success
 
   def validTitle(title: String) =
     if (title == "") "Title cannot be empty".failNel else title.success
@@ -60,12 +62,12 @@ object CreateIssue {
   def validDescr(descr: String) =
     if (descr == "") "Description cannot be empty".failNel else descr.success
 
-  def getProjects(srv: IssueService) =  (srv.projects fmap {
+  def getProjects(srv: IPServ) =  (srv.projects fmap {
     (sei: Seq[Either[Throwable, Project]]) => sei map (_ fold (_ => ("", ""), p => (p.name, p.name)))
   }).claim
 
-  def createIssue(servs: Seq[IssueService], project: String, title: String, descr: String) =
-    servs map (_.createIssue_?(project, Issue(title = title, body = descr)))
+  def createIssue(servs: Seq[IPServ], project: Project, title: String, descr: String) =
+    servs map (_.createIssue_?(Issue(number = 999999, title = title, body = descr, project = project)))
 
   def showResult(promise: Promise[Either[Throwable, Issue]]) = promise fmap {
     (ei: Either[Throwable, Issue]) =>
@@ -92,11 +94,13 @@ object CreateIssue {
       (srv, name) <- availableServs
       if (str == name)
     } yield srv
+
     services.update(_ => chosenServs)
   }
 
-  def updateProjects(srvs: Seq[IssueService]) = {
+  def updateProjects(srvs: Seq[IPServ]) = {
     val allProjects = (srvs map getProjects).distinct.toList
+
     val commonProjects =
       if (allProjects.size == 1)
         allProjects.flatten
@@ -109,6 +113,7 @@ object CreateIssue {
           if (t1 == t2)
         } yield t1
       }.distinct
+
     ReplaceOptions("project", commonProjects, Empty)
   }
 
@@ -131,7 +136,7 @@ object CreateIssue {
   def selProjects = SHtml.untrustedSelect(
     Seq(),
     Empty,
-    project.set,
+    s => s,
     "id" -> "project")
 
   def render =

@@ -1,6 +1,6 @@
 package fr.syncissues.comet
 
-import fr.syncissues.beans.Message
+import fr.syncissues.model.Message
 
 import net.liftweb.actor.LiftActor
 import net.liftweb.http.ListenerManager

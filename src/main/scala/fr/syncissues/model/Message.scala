@@ -1,4 +1,4 @@
-package fr.syncissues.beans
+package fr.syncissues.model
 
 sealed trait Message {
   def compId: String

@@ -2,21 +2,21 @@ package fr.syncissues.services
 
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
-import fr.syncissues.beans.Issue
+import fr.syncissues.model._
 import java.util.concurrent.TimeUnit
 
 class MantisSpec extends Specification {
 
   val username = "administrator"
   val password = "root"
-  val project = "testsync"
+  val project = Project(99999, "testsync")
 
   "Mantis with %s/%s".format(username, password).title
 
   val mantis = Mantis(username, password)
 
   lazy val mantisIssue =
-    mantis.issue(project, "1")
+    mantis.issue("1")
       .claim(4L, TimeUnit.SECONDS)
       .orSome(Left(new Exception("Time out !")))
 
@@ -26,12 +26,12 @@ class MantisSpec extends Specification {
       .orSome(Vector(Left(new Exception("Time out !"))))
 
   lazy val createdIssue =
-    mantis.createIssue(project, Issue(title = "CreatedBug1", body = "Created Bug CreatedBug1"))
+    mantis.createIssue(Issue(title = "CreatedBug1", body = "Descr CreatedBug1", project = project))
       .claim(4L, TimeUnit.SECONDS)
       .orSome(Left(new Exception("Time out !")))
 
   lazy val closedIssue =
-    createdIssue.right flatMap (is => mantis.closeIssue(project, is.copy(state = "closed"))
+    createdIssue.right flatMap (is => mantis.closeIssue(is.copy(state = "closed"))
       .claim(4L, TimeUnit.SECONDS)
       .orSome(Left(new Exception("Time out !"))))
 

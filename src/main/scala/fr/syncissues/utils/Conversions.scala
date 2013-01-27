@@ -1,57 +1,52 @@
 package fr.syncissues.utils
 
-import fr.syncissues.beans._
-import net.liftweb.json._
+import fr.syncissues._
+import utils.json.Serializer
+import model._
+import net.liftweb.json.{Serializer => _, _}
+import Serialization.write
 import biz.futureware.mantis.rpc.soap.client._
 import java.math.BigInteger
 
 object Conversions {
 
-  implicit def IntToBigInteger(i: Int) = new BigInteger(i.toString())
+  implicit def IntToBigInteger(i: Int) = new BigInteger(i.toString)
 
   implicit def BigIntegerToInt(bi: BigInteger) = bi.intValue
 
-  def toBean[T](json: JValue)(implicit format: Formats, mf: Manifest[T]): Either[Throwable, T] =
+  def write[T <: AnyRef](t: T)(implicit serializer: Serializer[T, String]) = { val s = serializer.serialize(t); println(s); s }
+
+  def toEntity[T](json: JValue)(implicit serializer: Serializer[T, String], mf: Manifest[T]): Either[Throwable, T] =
     try {
+      implicit val format = serializer.format
       Right(json.extract[T])
     } catch {
       case e: MappingException => Left(e)
     }
 
-  def toProject(json: JValue)(implicit format: Formats) = toBean[Project](json)
+  def toProject(implicit serializer: Serializer[Project, String]) = toEntity[Project] _
 
-  def toIssue(json: JValue)(implicit format: Formats) = toBean[Issue](json)
+  def toIssue(implicit serializer: Serializer[Issue, String]) = toEntity[Issue] _
 
-  def toProject(pdata: ProjectData) = Project(pdata.getName)
+  def toProject(pdata: ProjectData) = Project(pdata.getId, pdata.getName)
 
-  def toIssue(isData: IssueData): Issue =
-    Issue(isData.getId, "open", isData.getSummary, isData.getDescription)
+  def toIssue(isData: IssueData) =
+    Issue(isData.getId, "open", isData.getSummary, isData.getDescription,
+      Project(isData.getProject.getId, isData.getProject.getName))
 
-  def toIssueData(project: Int, category: String, is: Issue): IssueData = new IssueData() {
+  def toIssueData(category: String, is: Issue) = new IssueData() {
     setSummary(is.title)
     setDescription(is.body)
     setStatus(new ObjectRef() { setName(is.state) })
     setCategory(category)
-    setProject(new ObjectRef() { setId(project) })
+    setProject(new ObjectRef() {
+      setId(is.project.id)
+      setName(is.project.name)
+    })
+  }
+
+  def toProjectData(pr: Project) = new ProjectData() {
+    setName(pr.name)
   }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

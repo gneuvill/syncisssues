@@ -1,6 +1,6 @@
 package fr.syncissues.comet
 
-import fr.syncissues.beans._
+import fr.syncissues.model._
 import net.liftweb._
 import http._
 import common._
