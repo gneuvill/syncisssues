@@ -82,9 +82,14 @@ case class IceScrum(
       for {
         JArray(jissues) <- jvalue
         jissue <- jissues
-        if (jissue.children.size > 1 &&
+        if {
+          jissue.children.size > 1 &&
           jissue \\ "state" != JInt(7) &&  // we want correct and opened issues only
-          ((jissue \\ "name").toString startsWith project.name))
+          ((jissue \\ "name").toOpt exists {
+            case JString(name) => name startsWith project.name
+            case _ => false
+          })
+        }
       } yield jissue
     } map (_ fold (e => Seq(Left(e)), Seq() ++ _ map toIssue))
 

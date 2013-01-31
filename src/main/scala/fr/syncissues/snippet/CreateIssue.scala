@@ -25,6 +25,7 @@ import fj.control.parallel._
 import fj.Effect
 
 import scala.collection.SeqLike._
+import scala.annotation.tailrec
 
 object CreateIssue {
 
@@ -42,7 +43,9 @@ object CreateIssue {
   val availableServs =
     Seq(github -> "GitHub", icescrum -> "Icescrum", mantis -> "Mantis")
 
-  private object project extends RequestVar(Project(999999, ""): Project)
+  private object allProjects extends RequestVar(Seq(): Seq[(IPServ, Project)])
+
+  private object projectName extends RequestVar("": String)
 
   private object title extends RequestVar("")
 
@@ -53,8 +56,8 @@ object CreateIssue {
   def validServices(ls: Seq[IPServ]) =
     if (services.size == 0) "Select at least one service".failNel else ls.success
 
-  def validProject(project: Project) =
-    if (project.name == "") "You must choose a project".failNel else project.success
+  def validProject(projectName: String) =
+    if (projectName == "") "You must choose a project".failNel else projectName.success
 
   def validTitle(title: String) =
     if (title == "") "Title cannot be empty".failNel else title.success
@@ -62,12 +65,29 @@ object CreateIssue {
   def validDescr(descr: String) =
     if (descr == "") "Description cannot be empty".failNel else descr.success
 
-  def getProjects(srv: IPServ) =  (srv.projects fmap {
-    (sei: Seq[Either[Throwable, Project]]) => sei map (_ fold (_ => ("", ""), p => (p.name, p.name)))
-  }).claim
+  def getAllProjects(srvs: Seq[IPServ]) = {
+    for {
+      srv <- srvs
+      ei <- srv.projects.claim
+      p <- ei.right.toSeq
+    } yield srv -> p
+  }
 
-  def createIssue(servs: Seq[IPServ], project: Project, title: String, descr: String) =
-    servs map (_.createIssue_?(Issue(number = 999999, title = title, body = descr, project = project)))
+  @tailrec
+  def commonProjects(projects: List[Project], acc: List[Project] = Nil): List[Project] =
+    projects match {
+      case p :: Nil => acc
+      case p :: rest =>
+        val sameNames = rest filter (_.name == p.name)
+        commonProjects(rest, acc ++ sameNames)
+      case _ => Nil
+    }
+
+  def createIssue(servs: Seq[IPServ], projectName: String, title: String, descr: String) =
+    for {
+      srv <- servs
+      srvPr <- allProjects.get find (t => t._1 == srv && t._2.name == projectName)
+    } yield srv.createIssue_?(Issue(title = title, body = descr, project = Project(srvPr._2.id, srvPr._2.name)))
 
   def showResult(promise: Promise[Either[Throwable, Issue]]) = promise fmap {
     (ei: Either[Throwable, Issue]) =>
@@ -80,7 +100,7 @@ object CreateIssue {
   def process() = {
     val result = {
       validServices(services) |@|
-      validProject(project) |@|
+      validProject(projectName) |@|
       validTitle(title) |@|
       validDescr(descr)
     } apply createIssue
@@ -99,22 +119,21 @@ object CreateIssue {
   }
 
   def updateProjects(srvs: Seq[IPServ]) = {
-    val allProjects = (srvs map getProjects).distinct.toList
-
-    val commonProjects =
-      if (allProjects.size == 1)
-        allProjects.flatten
+    allProjects.update(_ => getAllProjects(srvs))
+    print("ALL => ")
+    println(allProjects.get map (_._2) toList)
+    val common = {
+      if (srvs.size == 1)
+        allProjects.get map (_._2) toList
       else {
-        for {
-          s1 <- allProjects
-          s2 <- allProjects filter (_ != s1)
-          t1 <- s1
-          t2 <- s2
-          if (t1 == t2)
-        } yield t1
-      }.distinct
+        val test = commonProjects(allProjects.get map (_._2) toList)
+        print("COMMON => ")
+        println(test)
+        test
+      }
+    }
 
-    ReplaceOptions("project", commonProjects, Empty)
+    ReplaceOptions("project", common map (p => (p.name, p.name)), Empty)
   }
 
   val servsVal = JsRaw(
@@ -136,7 +155,7 @@ object CreateIssue {
   def selProjects = SHtml.untrustedSelect(
     Seq(),
     Empty,
-    s => s,
+    projectName.set,
     "id" -> "project")
 
   def render =

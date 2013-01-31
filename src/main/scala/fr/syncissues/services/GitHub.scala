@@ -30,7 +30,7 @@ case class GitHub(
     JObject(JField("id", JInt(pr.id)) :: JField("name", JString(pr.name)) :: Nil))
 
   def projects =
-    Http(durl(url) / "users" / owner / "repos" OK as.lift.Json).either.right map { jvalue =>
+    Http(durl(url) / "users" / owner / "repos" <:< headers OK as.lift.Json).either.right map { jvalue =>
     for {
       JArray(jprojects) <- jvalue
       jproject <- jprojects
@@ -46,11 +46,11 @@ case class GitHub(
 
   def issue(number: String, project: Option[Project]) =
     project.toRight(new Exception("Missing Project value")).right
-      .map(pr => Http(durl(url) / "repos" / owner / pr.name / "issues" / number OK as.lift.Json).either)
+      .map(pr => Http(durl(url) / "repos" / owner / pr.name / "issues" / number <:< headers OK as.lift.Json).either)
       .fold(e => Http.promise(Left(e)), _ map (_.right flatMap (withProject(project.get) _ andThen toIssue)))
 
   def issues(project: Project) =
-    Http(durl(url) / "repos" / owner / project.name / "issues" <<? Map("per_page" -> "100") OK as.lift.Json)
+    Http(durl(url) / "repos" / owner / project.name / "issues" <:< headers <<? Map("per_page" -> "100") OK as.lift.Json)
       .either.right map  { jvalue =>
       for {
         JArray(jissues) <- jvalue
