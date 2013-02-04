@@ -45,7 +45,7 @@ object CreateIssue {
 
   private object allProjects extends RequestVar(Seq(): Seq[(IPServ, Project)])
 
-  private object projectName extends RequestVar("": String)
+  private object projectName extends RequestVar("")
 
   private object title extends RequestVar("")
 
@@ -87,7 +87,8 @@ object CreateIssue {
     for {
       srv <- servs
       srvPr <- allProjects.get find (t => t._1 == srv && t._2.name == projectName)
-    } yield srv.createIssue_?(Issue(title = title, body = descr, project = Project(srvPr._2.id, srvPr._2.name)))
+    } yield srv.createIssue_?(
+      Issue(title = title, body = descr, project = Project(srvPr._2.id, srvPr._2.name)))
 
   def showResult(promise: Promise[Either[Throwable, Issue]]) = promise fmap {
     (ei: Either[Throwable, Issue]) =>
