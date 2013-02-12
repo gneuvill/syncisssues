@@ -3,6 +3,7 @@ package snippet
 
 import fr.syncissues._
 import services._
+import ProjectService._
 import model._
 import utils._
 import FJ._
@@ -25,7 +26,6 @@ import fj.control.parallel._
 import fj.Effect
 
 import scala.collection.SeqLike._
-import scala.annotation.tailrec
 
 object CreateIssue {
 
@@ -65,23 +65,13 @@ object CreateIssue {
   def validDescr(descr: String) =
     if (descr == "") "Description cannot be empty".failNel else descr.success
 
-  def getAllProjects(srvs: Seq[IPServ]) = {
-    for {
-      srv <- srvs
-      ei <- srv.projects.claim
-      p <- ei.right.toSeq
-    } yield srv -> p
+  def getAllProjects(srvs: Seq[IPServ]) = srvs map { srv =>
+    srv -> (
+      for {
+        ei <- srv.projects.claim
+        p <- ei.right.toSeq
+      } yield p)
   }
-
-  @tailrec
-  def commonProjects(projects: List[Project], acc: List[Project] = Nil): List[Project] =
-    projects match {
-      case p :: Nil => acc
-      case p :: rest =>
-        val sameNames = rest filter (_.name == p.name)
-        commonProjects(rest, acc ++ sameNames)
-      case _ => Nil
-    }
 
   def createIssue(servs: Seq[IPServ], projectName: String, title: String, descr: String) =
     for {
@@ -120,14 +110,19 @@ object CreateIssue {
   }
 
   def updateProjects(srvs: Seq[IPServ]) = {
-    allProjects.update(_ => getAllProjects(srvs))
+    val srvProjects = getAllProjects(srvs)
+    allProjects.update( _ =>
+      for {
+        t <- srvProjects
+        p <- t._2
+      } yield t._1 -> p)
     print("ALL => ")
     println(allProjects.get map (_._2) toList)
     val common = {
       if (srvs.size == 1)
         allProjects.get map (_._2) toList
       else {
-        val test = commonProjects(allProjects.get map (_._2) toList)
+        val test = commonProjects((srvProjects map (_._2.toList)).toList)
         print("COMMON => ")
         println(test)
         test

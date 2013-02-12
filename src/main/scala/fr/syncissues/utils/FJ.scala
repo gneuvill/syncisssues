@@ -22,4 +22,6 @@ object FJ {
   implicit def liftActorToFJActor[M](la: LiftActor)
     (implicit strat: Strategy[FJUnit]): Actor[M] = Actor.actor(strat, (m: M) => la ! m )
 
+  //def fjActor[A, B <: A](strat: Strategy[FJUnit], func: A => Unit) = Actor.actor[B](strat, func)
+
 }

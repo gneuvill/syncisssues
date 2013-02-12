@@ -15,15 +15,18 @@ trait IssueService {
 
   implicit def strat: Strategy[fj.Unit]
 
-  def exists(project: Project, title: String): Promise[Either[Throwable, Boolean]] =
-    issues(project) fmap { (s: Seq[Either[Throwable, Issue]]) =>
-      (s map (_.right map (_.title == title))).fold[Either[Throwable, Boolean]](Right(false)) {
-        (ei1, ei2) => ei1.right flatMap (b1 => ei2.right map (b2 => b1 || b2))
+  def exists(is: Issue): Promise[Either[Throwable, Boolean]] =
+    issues(is.project) fmap { (s: Seq[Either[Throwable, Issue]]) =>
+      (s map (_.right map (_.title == is.title))).fold[Either[Throwable, Boolean]](Right(false)) {
+        (ei1, ei2) => for {
+          b1 <- ei1.right
+          b2 <- ei2.right
+        } yield b1 || b2
       }
     }
 
   def createIssue_?(is: Issue): Promise[Either[Throwable, Issue]] =
-    exists(is.project, is.title) bind { (eib: Either[Throwable, Boolean]) =>
+    exists(is) bind { (eib: Either[Throwable, Boolean]) =>
       eib match {
         case Right(false) => createIssue(is)
         case Right(true) =>

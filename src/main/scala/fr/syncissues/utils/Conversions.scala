@@ -37,7 +37,12 @@ object Conversions {
   def toIssueData(category: String, is: Issue) = new IssueData() {
     setSummary(is.title)
     setDescription(is.body)
-    setStatus(new ObjectRef() { setName(is.state) })
+    setStatus(new ObjectRef() {
+      val (id, name) =
+        if (is.state == "open") (10, "new") else (90, "closed")
+      setId(id)
+      setName(name)
+    })
     setCategory(category)
     setProject(new ObjectRef() {
       setId(is.project.id)

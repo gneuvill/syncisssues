@@ -3,6 +3,7 @@ package snippet
 
 import fr.syncissues._
 import services._
+import ProjectService._
 import model._
 import utils._
 import FJ._
@@ -27,6 +28,7 @@ import html._
 
 import java.util.concurrent.Executors
 import fj.control.parallel._
+import Actor.{actor => fjActor}
 // import fj.Effect
 
 // import scala.collection.SeqLike._
@@ -39,24 +41,47 @@ class SyncIssues extends Observing {
   implicit val strat =
     Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4))
   
+  implicit lazy val curPage = Page.currentPage
+
   val github = SyncIsInjector.github.vend
 
   val icescrum = SyncIsInjector.icescrum.vend
 
   val mantis = SyncIsInjector.mantis.vend
 
-  implicit lazy val curPage = Page.currentPage
+  // val initActor = fjActor(strat, (func: (IPServ, Seq[Issue]) => Unit) => {
+  //       Reactions.inServerScope(curPage) {
+  //         func()
+  //         //servIssues(t._1) update t._2
+  //       }
+  // })
 
-  val actor = new LiftActor {
-    def handleIssues: PartialFunction[(IPServ, Seq[Issue]), Unit] = {
-      case (srv, isseq) =>
-        Reactions.inServerScope(curPage) {
-          servIssues(srv) update isseq // Seq(Issue(title = "Toto-" + randomString(4)))
-        }
+  val projectActor = fjActor(strat, (t: (Seq[Project], (Seq[Project], Seq[Project]) => Seq[Project])) => {
+    projects update {
+      if (selectedServices.now.size == 1) t._1
+      else commonProjects(t._2(projects.now, t._1).toList :: Nil)
     }
-    def messageHandler =
-      handleIssues.asInstanceOf[PartialFunction[Any, Unit]]
+  })
+
+  val allServices = github :: icescrum :: mantis :: Nil
+  val services= BufferSignal[IPServ](allServices: _*)
+  val selectedServices = BufferSignal[IPServ]()
+  selectedServices.deltas ?>> {
+    case Include(index, elem) =>
+      elem.projects.fmap {
+        s: Seq[Either[Throwable, Project]] =>
+        (for (ei <- s; prj <- ei.right.toSeq) yield prj,
+          (s1: Seq[Project], s2: Seq[Project]) => s1 ++ s2)
+      } to projectActor
+    case Remove(index, old) =>
+      old.projects.fmap {
+        s: Seq[Either[Throwable, Project]] =>
+        (for (ei <- s; prj <- ei.right.toSeq) yield prj,
+          (s1: Seq[Project], s2: Seq[Project]) => s1 filterNot s2.contains)
+      } to projectActor
   }
+
+  val projects = BufferSignal[Project]()
 
   val servIssues: Map[IPServ, BufferSignal[Issue]] = Map(
       github -> BufferSignal[Issue](),
@@ -68,16 +93,46 @@ class SyncIssues extends Observing {
       icescrum -> BufferSignal[Issue](),
       mantis -> BufferSignal[Issue]())
 
-  def initIssues() = Seq(github, icescrum, mantis) foreach {
+  val serviceRepeat = Repeater {
+    services.now map { srv =>
+      val click = DomEventSource.click
+      val className =
+        PropertyVar("className", "class")("srvname")
+      click ->> {
+          if (selectedServices.value contains srv) {
+            selectedServices.value -= srv
+            className() = (className.now split " ")
+              .filterNot(_ == "selected") mkString " "
+          }
+          else {
+            selectedServices.value += srv
+            className() = "selected" + " " + className.now
+          }
+        // srv.projects fmap {
+        //   s: Seq[Either[Throwable, Project]] =>
+        //   for (ei <- s; prj <- ei.right.toSeq) yield prj
+        // } to projectActor
+      }
+      ".srvname" #> click &
+      ".srvname" #> className &
+      ".srvname *" #> srv.getClass.getSimpleName
+    } signal
+  }
+
+  val projectSelect = Select(projects.now.headOption, projects, (prj: Project) => prj.name) {
+    println
+  }
+
+  def initIssues() = allServices foreach {
     srv => srv.issues(Project(name = "testsync")) fmap {
       (sei: Seq[Either[Throwable, Issue]]) => {
         val isseq = for {
           ei <- sei
           is <- ei.right.toSeq
         } yield is
-        (srv, isseq)
+        servIssues(srv) update isseq
       }
-    } to actor
+    }
   }
 
   def issueRepeat(srv: IPServ) =
@@ -108,14 +163,26 @@ class SyncIssues extends Observing {
   def syncIssues(srv1: IPServ, srv2: IPServ) = {
     val oldIssues = servIssues(srv1).now
     val newIssues = servSelectedIssues(srv2).now
-    servIssues(srv1).value ++= newIssues diff oldIssues
+    newIssues foreach {
+      srv1.createIssue_? _ andThen (_ fmap {
+        (ei: Either[Throwable, Issue]) =>
+        ei fold (
+          t => NotifServer ! ErrorM("", t.getMessage),
+          is => {
+            servIssues(srv1).value ++= Seq(is)
+            NotifServer ! SuccessM("", "%s has been created in %s".format(is.title, srv1.getClass.getSimpleName))
+          })
+      })
+    }
   }
 
   val srvsList: List[Option[IPServ]] =
     Some(github) :: None :: Some(icescrum) :: None :: Some(mantis) :: Nil
 
   def render = {
-    initIssues()
+    //initIssues()
+    ".selservice" #> serviceRepeat &
+    ".selproject" #> projectSelect &
     ".service" #> (srvsList.zipWithIndex map {
       case (Some(srv), _) => issueRepeat(srv)
       case (None, idx) => ".buttons *" #> {
@@ -128,4 +195,5 @@ class SyncIssues extends Observing {
       }
     })
   }
+
 }
