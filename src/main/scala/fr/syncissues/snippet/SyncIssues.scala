@@ -23,8 +23,8 @@ import reactive._
 import web._
 import html._
 
-import scalaz._
-import Scalaz._
+//import scalaz._
+//import Scalaz._
 
 import java.util.concurrent.Executors
 import fj._
@@ -52,8 +52,6 @@ class SyncIssues extends Observing {
 
   val mantis = SyncIsInjector.mantis.vend
 
-  val projectActor = fjActor(strat, projects update commonProjects(_: Seq[Seq[Project]]))
-
   val allServices = github :: icescrum :: mantis :: Nil
 
   val services= BufferSignal[IPServ](allServices: _*)
@@ -68,17 +66,16 @@ class SyncIssues extends Observing {
     }) to projectActor
   }
 
-  val projects = BufferSignal[Project]()
 
   val servIssues: Map[IPServ, BufferSignal[Issue]] = Map(
-      github -> BufferSignal[Issue](),
-      icescrum -> BufferSignal[Issue](),
-      mantis -> BufferSignal[Issue]())
+    github -> BufferSignal[Issue](),
+    icescrum -> BufferSignal[Issue](),
+    mantis -> BufferSignal[Issue]())
 
   val servSelectedIssues: Map[IPServ, BufferSignal[Issue]] = Map(
-      github -> BufferSignal[Issue](),
-      icescrum -> BufferSignal[Issue](),
-      mantis -> BufferSignal[Issue]())
+    github -> BufferSignal[Issue](),
+    icescrum -> BufferSignal[Issue](),
+    mantis -> BufferSignal[Issue]())
 
   val serviceRepeat = Repeater {
     services.now map { srv =>
@@ -86,15 +83,15 @@ class SyncIssues extends Observing {
       val className =
         PropertyVar("className", "class")("srvname")
       click ->> {
-          if (selectedServices.value contains srv) {
-            selectedServices.value -= srv
-            className() = (className.now split " ")
-              .filterNot(_ == "selected") mkString " "
-          }
-          else {
-            selectedServices.value += srv
-            className() = "selected" + " " + className.now
-          }
+        if (selectedServices.value contains srv) {
+          selectedServices.value -= srv
+          className() = (className.now split " ")
+            .filterNot(_ == "selected") mkString " "
+        }
+        else {
+          selectedServices.value += srv
+          className() = "selected" + " " + className.now
+        }
       }
       ".srvname" #> click &
       ".srvname" #> className &
@@ -102,9 +99,24 @@ class SyncIssues extends Observing {
     } signal
   }
 
+  val projects = BufferSignal[Project]()
+
+  val projectActor = fjActor(strat, projects update commonProjects(_: Seq[Seq[Project]]))
+
   val projectSelect = Select(projects.now.headOption, projects, (prj: Project) => prj.name) {
-    println
+    case Some(prj) => fjPSequence(strat, selectedServices.now map { srv: IPServ =>
+      srv.issues(prj) fmap {
+        s: Seq[Either[Throwable, Issue]] =>
+        (srv, for (ei <- s; is <- ei.right.toSeq) yield is)
+      }
+    }) to issueActor
+    case _ =>
   }
+
+  val issueActor = fjActor(strat, (s: Seq[(IPServ, Seq[Issue])]) => s foreach { t => t match {
+    case (srv, iss) => servSelectedIssues(srv) update iss
+    case _ =>
+  }})
 
   def initIssues() = allServices foreach {
     srv => srv.issues(Project(name = "testsync")) fmap {
@@ -118,30 +130,43 @@ class SyncIssues extends Observing {
     }
   }
 
-  def issueRepeat(srv: IPServ) =
-    Repeater {
-      servIssues(srv).now map { is =>
-        val click = DomEventSource.click
-        val buf = servSelectedIssues(srv)
-        val className =
-          PropertyVar("className", "class")("issue")
-        for (c <- click.eventStream) {
-          if (buf.value contains is) {
-            buf.value -= is
-            className() = (className.now split " ")
-              .filterNot(_ == "selected") mkString " "
-          }
-          else {
-            buf.value += is
-            className() = "selected" + " " + className.now
-          }
-        }
-        ".issue" #> click &
-        ".issue" #> className &
-        ".issue *" #> is.title &
-        ".buttons" #> Noop
-      } signal
-    }
+  val issueRepeat = Repeater {
+    selectedServices.now map { srv =>
+      val srvs = servIssues.keys.toIndexedSeq
+      val idx = srvs.indexOf(srv)
+      Repeater {
+	servIssues(srv).now map { is =>
+	  val click = DomEventSource.click
+	  val buf = servSelectedIssues(srv)
+	  val className =
+	    PropertyVar("className", "class")("issue")
+	  for (c <- click.eventStream) {
+	    if (buf.value contains is) {
+	      buf.value -= is
+	      className() = (className.now split " ")
+		.filterNot(_ == "selected") mkString " "
+	    }
+	    else {
+	      buf.value += is
+	      className() = "selected" + " " + className.now
+	    }
+	  }
+	  ".issue" #> click &
+	  ".issue" #> className &
+	  ".issue *" #> is.title &
+	  ".buttons *" #> {
+	    ".syncright" #> Button("->") {
+	      syncIssues(srvs(idx + 1), srvs(idx - 1))
+	    } &
+	    ".syncleft" #> Button("<-") {
+	      syncIssues(srvs(idx - 1), srvs(idx + 1))
+	    }
+	  }
+	} signal
+      }
+      
+    } signal
+  }
 
   def syncIssues(srv1: IPServ, srv2: IPServ) = {
     val oldIssues = servIssues(srv1).now
@@ -159,29 +184,20 @@ class SyncIssues extends Observing {
     }
   }
 
-  val thing = Repeater {
-    selectedServices.now map { srv =>
-      val srvsList = selectedServices.now.toList map (Option(_)) intersperse (None)
-      (srvsList.zipWithIndex map {
-        case (Some(srv), _) => issueRepeat(srv)
-        case (None, idx) => ".buttons *" #> {
-          ".syncright" #> Button("->") {
-            syncIssues(srvsList(idx + 1).get, srvsList(idx - 1).get)
-          } &
-          ".syncleft" #> Button("<-") {
-            syncIssues(srvsList(idx - 1).get, srvsList(idx + 1).get)
-          }
-        }
-      })
-    } signal
-  }
+  // val srvsList = allServices  map (Option(_)) intersperse (None) // selectedServices.now.toList map (Option(_)) intersperse (None)
+  
+
+  // val thing = Repeater {
+  //   selectedServices.now map { srv =>
+
+  //   } signal
+  // }
 
 
   def render = {
-    //initIssues()
     ".selservice" #> serviceRepeat &
     ".selproject" #> projectSelect &
-    ".service" #> thing
+    ".service" #> issueRepeat
   }
 
 }
