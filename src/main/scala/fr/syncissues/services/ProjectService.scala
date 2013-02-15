@@ -17,13 +17,13 @@ trait ProjectService {
 
 object ProjectService {
 
-  @tailrec
-  def commonProjects(llProjects: List[List[Project]], acc: List[Project] = Nil): List[Project] =
-    llProjects match {
-      case Nil => Nil
-      case lp :: Nil => acc.distinct
-      case lp :: rest =>
-        val sameNames = lp filter (p => { rest forall (_ exists (_.name == p.name)) })
-        commonProjects(rest, acc ++ sameNames)
-    }
+  def commonProjects(llProjects: Seq[Seq[Project]]): Seq[Project] = {
+    println(llProjects)
+    if (llProjects.size <= 1)
+      llProjects.head
+    else
+      llProjects.head filter { p =>
+        llProjects.tail forall (_ exists (_.name == p.name))
+      }
+  }
 }

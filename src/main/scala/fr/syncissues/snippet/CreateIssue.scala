@@ -111,23 +111,14 @@ object CreateIssue {
 
   def updateProjects(srvs: Seq[IPServ]) = {
     val srvProjects = getAllProjects(srvs)
+
     allProjects.update( _ =>
       for {
         t <- srvProjects
         p <- t._2
       } yield t._1 -> p)
-    print("ALL => ")
-    println(allProjects.get map (_._2) toList)
-    val common = {
-      if (srvs.size == 1)
-        allProjects.get map (_._2) toList
-      else {
-        val test = commonProjects((srvProjects map (_._2.toList)).toList)
-        print("COMMON => ")
-        println(test)
-        test
-      }
-    }
+
+    val common = commonProjects(srvProjects map (_._2)).toList
 
     ReplaceOptions("project", common map (p => (p.name, p.name)), Empty)
   }

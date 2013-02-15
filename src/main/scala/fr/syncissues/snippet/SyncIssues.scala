@@ -23,12 +23,15 @@ import reactive._
 import web._
 import html._
 
-// import scalaz._
-// import Scalaz._
+import scalaz._
+import Scalaz._
 
 import java.util.concurrent.Executors
-import fj.control.parallel._
+import fj._
+import data.List.{list => fjList}
+import control.parallel._
 import Actor.{actor => fjActor}
+import Promise.{sequence => fjPSequence}
 // import fj.Effect
 
 // import scala.collection.SeqLike._
@@ -49,36 +52,20 @@ class SyncIssues extends Observing {
 
   val mantis = SyncIsInjector.mantis.vend
 
-  // val initActor = fjActor(strat, (func: (IPServ, Seq[Issue]) => Unit) => {
-  //       Reactions.inServerScope(curPage) {
-  //         func()
-  //         //servIssues(t._1) update t._2
-  //       }
-  // })
-
-  val projectActor = fjActor(strat, (t: (Seq[Project], (Seq[Project], Seq[Project]) => Seq[Project])) => {
-    projects update {
-      if (selectedServices.now.size == 1) t._1
-      else commonProjects(t._2(projects.now, t._1).toList :: Nil)
-    }
-  })
+  val projectActor = fjActor(strat, projects update commonProjects(_: Seq[Seq[Project]]))
 
   val allServices = github :: icescrum :: mantis :: Nil
+
   val services= BufferSignal[IPServ](allServices: _*)
+
   val selectedServices = BufferSignal[IPServ]()
-  selectedServices.deltas ?>> {
-    case Include(index, elem) =>
-      elem.projects.fmap {
+  selectedServices ->> {
+    fjPSequence(strat, selectedServices.now map { srv: IPServ =>
+      srv.projects fmap {
         s: Seq[Either[Throwable, Project]] =>
-        (for (ei <- s; prj <- ei.right.toSeq) yield prj,
-          (s1: Seq[Project], s2: Seq[Project]) => s1 ++ s2)
-      } to projectActor
-    case Remove(index, old) =>
-      old.projects.fmap {
-        s: Seq[Either[Throwable, Project]] =>
-        (for (ei <- s; prj <- ei.right.toSeq) yield prj,
-          (s1: Seq[Project], s2: Seq[Project]) => s1 filterNot s2.contains)
-      } to projectActor
+        for (ei <- s; prj <- ei.right.toSeq) yield prj
+      }
+    }) to projectActor
   }
 
   val projects = BufferSignal[Project]()
@@ -108,10 +95,6 @@ class SyncIssues extends Observing {
             selectedServices.value += srv
             className() = "selected" + " " + className.now
           }
-        // srv.projects fmap {
-        //   s: Seq[Either[Throwable, Project]] =>
-        //   for (ei <- s; prj <- ei.right.toSeq) yield prj
-        // } to projectActor
       }
       ".srvname" #> click &
       ".srvname" #> className &
@@ -176,24 +159,29 @@ class SyncIssues extends Observing {
     }
   }
 
-  val srvsList: List[Option[IPServ]] =
-    Some(github) :: None :: Some(icescrum) :: None :: Some(mantis) :: Nil
+  val thing = Repeater {
+    selectedServices.now map { srv =>
+      val srvsList = selectedServices.now.toList map (Option(_)) intersperse (None)
+      (srvsList.zipWithIndex map {
+        case (Some(srv), _) => issueRepeat(srv)
+        case (None, idx) => ".buttons *" #> {
+          ".syncright" #> Button("->") {
+            syncIssues(srvsList(idx + 1).get, srvsList(idx - 1).get)
+          } &
+          ".syncleft" #> Button("<-") {
+            syncIssues(srvsList(idx - 1).get, srvsList(idx + 1).get)
+          }
+        }
+      })
+    } signal
+  }
+
 
   def render = {
     //initIssues()
     ".selservice" #> serviceRepeat &
     ".selproject" #> projectSelect &
-    ".service" #> (srvsList.zipWithIndex map {
-      case (Some(srv), _) => issueRepeat(srv)
-      case (None, idx) => ".buttons *" #> {
-        ".syncright" #> Button("->") {
-          syncIssues(srvsList(idx + 1).get, srvsList(idx - 1).get)
-        } &
-        ".syncleft" #> Button("<-") {
-          syncIssues(srvsList(idx - 1).get, srvsList(idx + 1).get)
-        }
-      }
-    })
+    ".service" #> thing
   }
 
 }
