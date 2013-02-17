@@ -55,6 +55,17 @@ case class IceScrum(
 
   val headers = Map("Content-Type" -> "application/json", "Authorization" -> ("Basic " + auth))
 
+  private def projectId(p: Project) = projects fmap {
+    s: Seq[Either[Throwable, Project]] => {
+      s find (_.right exists (_.name == p.name)) flatMap (_.right.toOption map (_.id))
+    }.toRight (new Exception("Project %s doesn't exist".format(p.name)))
+  }
+
+  private def withProjectId(p: Project)(f: Int => Promise[Either[Throwable, Issue]]) =
+    projectId(p) bind { ei: Either[Throwable, Int] =>
+      ei.fold[Promise[Either[Throwable, Issue]]](t => promise(strat, Left(t)), f)
+    }
+
   def projects =
     Http(durl(url) / team / "feature" <:< headers OK as.lift.Json).either.right map { jvalue =>
       for {
@@ -94,8 +105,12 @@ case class IceScrum(
     } map (_ fold (e => Seq(Left(e)), Seq() ++ _ map toIssue))
 
   def createIssue(is: Issue) =
-    Http(durl(url) / team / "story" <:< headers << write(is) OK as.lift.Json)
-      .either map (_.right flatMap toIssue)
+    withProjectId(is.project) { id =>
+      Http {
+        durl(url) / team / "story" <:< headers <<
+        write(is copy (project = Project(id, is.project.name))) OK as.lift.Json
+      }.either map (_.right flatMap toIssue)
+    }
 
   def closeIssue(is: Issue) =
     Http {

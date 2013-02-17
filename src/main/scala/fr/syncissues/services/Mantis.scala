@@ -72,7 +72,8 @@ case class Mantis(
 
   private def tryCreate(is: Issue): Either[Exception, Int] =
     for {
-      cat <- tryCat(is.project.id).right
+      pid <- tryProjectId(is.project).right
+      cat <- tryCat(pid).right
       int <- tryOne {
         mantisConnect.mc_issue_add(user, password, toIssueData(cat, is))
       }.right

@@ -3,9 +3,9 @@ package fr.syncissues.utils
 import scala.collection.JavaConverters._
 import dispatch.Promise
 
-import fj.{Unit => FJUnit, _}
-import data.{List => FJList}
-import control.parallel.{Actor, Strategy, Promise => FJPromise}
+import fj.{Unit => FJUnit, P1, F, Effect}
+import fj.data.{List => FJList}
+import fj.control.parallel.{Actor, Strategy, Promise => FJPromise}
 import FJPromise._
 import net.liftweb.actor.LiftActor
 
@@ -28,6 +28,11 @@ object FJ {
   implicit def liftActorToFJActor[M](la: LiftActor)
     (implicit strat: Strategy[FJUnit]): Actor[M] = Actor.actor(strat, (m: M) => la ! m )
 
-  implicit def seqToFJList[A](seq: Seq[A]): FJList[A] = FJList.list(seq: _*)
+  case class FJListConvertible[A, B[A] <: Seq[A]](seq: B[A]) {
+    def asFJList: FJList[A] = FJList.list(seq: _*)
+  }
+
+  implicit def seqToFJListConvertible[A, B[A] <: Seq[A]](seq: B[A]): FJListConvertible[A, B] =
+    FJListConvertible[A, B](seq)
 
 }

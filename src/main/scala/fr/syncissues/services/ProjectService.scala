@@ -17,13 +17,11 @@ trait ProjectService {
 
 object ProjectService {
 
-  def commonProjects(llProjects: Seq[Seq[Project]]): Seq[Project] = {
-    println(llProjects)
+  def commonProjects(llProjects: Seq[Seq[Project]]): Seq[Project] =
     if (llProjects.size <= 1)
       llProjects.head
     else
       llProjects.head filter { p =>
         llProjects.tail forall (_ exists (_.name == p.name))
       }
-  }
 }
