@@ -9,6 +9,8 @@ import utils._
 import FJ._
 import comet._
 
+import scala.collection.JavaConverters._
+
 import net.liftweb._
 import http._
 import common._
@@ -17,7 +19,8 @@ import Helpers._
 import js._
 import JE._
 import JsCmds._
-import actor.LiftActor
+import actor.SpecializedLiftActor
+
 
 import reactive._
 import web._
@@ -26,8 +29,7 @@ import html._
 import scalaz.syntax.std.indexedSeq._
 
 import java.util.concurrent.Executors
-import fj._
-import control.parallel._
+import fj.control.parallel._
 import Actor.{actor => fjActor}
 import Promise.{sequence => fjPSequence}
 
@@ -70,8 +72,10 @@ class SyncIssues extends Observing {
     srvsOpts() = Seq()
   }
 
+  /**
+    * TODO : faire le claim dans le LiftActor (but: ne pas utiliser les Actor fj) 
+    */
   selectedServices.change ->> {
-    alert("toto")
     fjPSequence(strat, selectedServices.now map { srv: IPServ =>
       srv.projects fmap {
         s: Seq[Either[Throwable, Project]] =>
@@ -109,18 +113,27 @@ class SyncIssues extends Observing {
 
   val projects = BufferSignal[Project](dummyProject)
 
-  val projectActor = fjActor(strat, (s: Seq[Seq[Project]]) => {
-    projects() = dummyProject :: commonProjects(s).toList
-  })
+  // val projectActor = fjActor(strat, (s: Seq[Seq[Project]]) => {
+  //   projects() = dummyProject :: commonProjects(s).toList
+  // })
+
+  /**
+    * TODO : faire le claim dans le LiftActor (but: ne pas utiliser les Actor fj) 
+    */
+  val projectActor = new SpecializedLiftActor[fj.data.List[Seq[Project]]] {
+    def messageHandler =  {
+      case l => projects() = dummyProject :: commonProjects(l.toCollection.asScala.toSeq).toList
+    }
+  }
 
   val projectSelect = Select(Some(dummyProject), projects, (prj: Project) => prj.name) {
     //case Some(prj) if prj.id == -999 => reset()
-    case Some(prj) => fjPSequence(strat, selectedServices.now map { srv: IPServ =>
-      srv.issues(prj) fmap {
-        s: Seq[Either[Throwable, Issue]] =>
-        (srv, for (ei <- s; is <- ei.right.toSeq) yield is)
-      }
-    } asFJList) to issueActor
+    case Some(prj) => // fjPSequence(strat, selectedServices.now map { srv: IPServ =>
+    //   srv.issues(prj) fmap {
+    //     s: Seq[Either[Throwable, Issue]] =>
+    //     (srv, for (ei <- s; is <- ei.right.toSeq) yield is)
+    //   }
+    // } asFJList) to issueActor
     case _ =>
   }
 

@@ -19,7 +19,7 @@ object ProjectService {
 
   def commonProjects(llProjects: Seq[Seq[Project]]): Seq[Project] =
     if (llProjects.size <= 1)
-      llProjects.head
+      llProjects.headOption getOrElse Seq()
     else
       llProjects.head filter { p =>
         llProjects.tail forall (_ exists (_.name == p.name))
