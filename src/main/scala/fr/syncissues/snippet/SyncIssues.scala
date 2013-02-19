@@ -14,13 +14,12 @@ import scala.collection.JavaConverters._
 import net.liftweb._
 import http._
 import common._
-import util.{Cell => _, _}
+import util.{ Cell => _, _ }
 import Helpers._
 import js._
 import JE._
 import JsCmds._
 import actor.SpecializedLiftActor
-
 
 import reactive._
 import web._
@@ -30,8 +29,8 @@ import scalaz.syntax.std.indexedSeq._
 
 import java.util.concurrent.Executors
 import fj.control.parallel._
-import Actor.{actor => fjActor}
-import Promise.{sequence => fjPSequence}
+import Actor.{ actor => fjActor }
+import Promise.{ sequence => fjPSequence }
 
 class SyncIssues extends Observing {
 
@@ -39,7 +38,7 @@ class SyncIssues extends Observing {
 
   implicit val strat =
     Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4))
-  
+
   implicit lazy val curPage = Page.currentPage
 
   val github = SyncIsInjector.github.vend
@@ -73,15 +72,16 @@ class SyncIssues extends Observing {
   }
 
   /**
-    * TODO : faire le claim dans le LiftActor (but: ne pas utiliser les Actor fj) 
-    */
+   * TODO : faire le claim dans le LiftActor (but: ne pas utiliser les Actor fj)
+   */
   selectedServices.change ->> {
-    fjPSequence(strat, selectedServices.now map { srv: IPServ =>
-      srv.projects fmap {
-        s: Seq[Either[Throwable, Project]] =>
-        for (ei <- s; prj <- ei.right.toSeq) yield prj
-      }
-    } asFJList) to projectActor
+    projectActor ! (selectedServices.value map (_.projects))
+    // fjPSequence(strat, selectedServices.now map { srv: IPServ =>
+    //   srv.projects fmap {
+    //     s: Seq[Either[Throwable, Project]] =>
+    //     for (ei <- s; prj <- ei.right.toSeq) yield prj
+    //   }
+    // } asFJList) to projectActor
   }
 
   val serviceRepeat = Repeater {
@@ -96,20 +96,19 @@ class SyncIssues extends Observing {
           selectedServices.value -= srv
           className() = (className.now split " ")
             .filterNot(_ == "selected") mkString " "
-        }
-        else {
+        } else {
           //reset()
           selectedServices.value += srv
           className() = "selected" + " " + className.now
         }
       }
       ".srvname" #> click &
-      ".srvname" #> className &
-      ".srvname *" #> srv.getClass.getSimpleName
+        ".srvname" #> className &
+        ".srvname *" #> srv.getClass.getSimpleName
     }))
   }
 
-  val dummyProject = Project(-999, " --- Select --- ") 
+  val dummyProject = Project(-999, " --- Select --- ")
 
   val projects = BufferSignal[Project](dummyProject)
 
@@ -117,12 +116,14 @@ class SyncIssues extends Observing {
   //   projects() = dummyProject :: commonProjects(s).toList
   // })
 
-  /**
-    * TODO : faire le claim dans le LiftActor (but: ne pas utiliser les Actor fj) 
-    */
-  val projectActor = new SpecializedLiftActor[fj.data.List[Seq[Project]]] {
-    def messageHandler =  {
-      case l => projects() = dummyProject :: commonProjects(l.toCollection.asScala.toSeq).toList
+  val projectActor = new SpecializedLiftActor[Seq[Promise[Seq[Either[Throwable, Project]]]]] {
+    def messageHandler = {
+      case s => projects() = dummyProject :: (commonProjects {
+        s map (_.claim map {
+          case Right(prj) => prj
+          case Left(t) => t.printStackTrace; dummyProject
+        })
+      } filterNot (_ == dummyProject)).toList
     }
   }
 
@@ -138,15 +139,15 @@ class SyncIssues extends Observing {
   }
 
   val issueActor = fjActor(strat, (s: Seq[(IPServ, Seq[Issue])]) =>
-    s foreach { t => t match {
-      case (srv, iss) => {
-        srvsOpts() = (selectedServices.now.toIndexedSeq map (Option(_: IPServ)) intersperse None).zipWithIndex
-        servIssues(srv) update iss
+    s foreach { t =>
+      t match {
+        case (srv, iss) => {
+          srvsOpts() = (selectedServices.now.toIndexedSeq map (Option(_: IPServ)) intersperse None).zipWithIndex
+          servIssues(srv) update iss
+        }
+        case _ =>
       }
-      case _ =>
-    }})
-
-
+    })
 
   // val srvsOpts = SeqSignal(selectedServices map {
   //   ds => (ds.toIndexedSeq map (Option(_: IPServ)) intersperse None).zipWithIndex
@@ -157,41 +158,38 @@ class SyncIssues extends Observing {
 
   //alert(sv + " <-> " + idx)
 
-
-
   val issueRepeat = Repeater {
     srvsOpts.now map { tuple =>
       (tuple match {
         case (Some(sv), idx) =>
           ".service" #> Repeater {
-          servIssues(sv).now map { is =>
-            val click = DomEventSource.click
-            val buf = servSelectedIssues(sv)
-            val className =
-              PropertyVar("className", "class")("issue")
-            click ->> {
-              if (buf.value contains is) {
-                buf.value -= is
-                className() = (className.now split " ")
-        	  .filterNot(_ == "selected") mkString " "
+            servIssues(sv).now map { is =>
+              val click = DomEventSource.click
+              val buf = servSelectedIssues(sv)
+              val className =
+                PropertyVar("className", "class")("issue")
+              click ->> {
+                if (buf.value contains is) {
+                  buf.value -= is
+                  className() = (className.now split " ")
+                    .filterNot(_ == "selected") mkString " "
+                } else {
+                  buf.value += is
+                  className() = "selected" + " " + className.now
+                }
               }
-              else {
-                buf.value += is
-                className() = "selected" + " " + className.now
-              }
-            }
-            ".issue" #> click &
-            ".issue" #> className &
-            ".issue *" #> is.title
-          } signal
-        } & ".buttons" #> Noop
+              ".issue" #> click &
+                ".issue" #> className &
+                ".issue *" #> is.title
+            } signal
+          } & ".buttons" #> Noop
         case (None, idx) => ".buttons *" #> {
           ".syncright" #> Button("->") {
             syncIssues(srvsOpts.now(idx + 1)._1.get, srvsOpts.now(idx - 1)._1.get)
           } &
-          ".syncleft" #> Button("<-") {
-            syncIssues(srvsOpts.now(idx - 1)._1.get, srvsOpts.now(idx + 1)._1.get)
-          }
+            ".syncleft" #> Button("<-") {
+              syncIssues(srvsOpts.now(idx - 1)._1.get, srvsOpts.now(idx + 1)._1.get)
+            }
         }
       })
     } signal
@@ -202,19 +200,19 @@ class SyncIssues extends Observing {
     newIssues foreach {
       srv1.createIssue_? _ andThen (_ fmap {
         (ei: Either[Throwable, Issue]) =>
-        ei fold (
-          t => NotifServer ! ErrorM("", t.getMessage),
-          is => {
-            servIssues(srv1).value += is
-            NotifServer ! SuccessM("", "%s has been created in %s".format(is.title, srv1.getClass.getSimpleName))
-          })
+          ei fold (
+            t => NotifServer ! ErrorM("", t.getMessage),
+            is => {
+              servIssues(srv1).value += is
+              NotifServer ! SuccessM("", "%s has been created in %s".format(is.title, srv1.getClass.getSimpleName))
+            })
       })
     }
   }
 
   def render =
     ".selservice" #> serviceRepeat &
-    ".selproject" #> projectSelect &
-    ".serviceCont" #> issueRepeat
+      ".selproject" #> projectSelect &
+      ".serviceCont" #> issueRepeat
 
 }

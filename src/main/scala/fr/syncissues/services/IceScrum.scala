@@ -72,7 +72,7 @@ case class IceScrum(
         JArray(jfeatures) <- jvalue
         jfeature <- jfeatures
       } yield jfeature transform {
-        case JField("name", JString(s)) => JField("name", JString(s takeWhile (_ != ':')))
+        case JField("name", JString(s)) => JField("name", JString(s takeWhile (_ != ':') trim))
       }
     } map (_ fold (e => Seq(Left(e)), Seq() ++ _ map toProject))
 
