@@ -64,15 +64,16 @@ case class Mantis(
   }
 
   private def tryIssues(project: Project, pageNb: Int = 1, perPage: Int = 100) =
-      tryProjectId(project).right.toSeq flatMap { pid =>
-        trySeveral {
-          mantisConnect.mc_project_get_issues(user, password, pid, pageNb, perPage)
-        }
+    tryProjectId(project).right.toSeq flatMap { pid =>
+      trySeveral {
+        mantisConnect.mc_project_get_issues(user, password, pid, pageNb, perPage)
       }
+    }
 
   private def tryCreate(is: Issue): Either[Exception, Int] =
     for {
-      cat <- tryCat(is.project.id).right
+      pid <- tryProjectId(is.project).right
+      cat <- tryCat(pid).right
       int <- tryOne {
         mantisConnect.mc_issue_add(user, password, toIssueData(cat, is))
       }.right
@@ -94,8 +95,8 @@ case class Mantis(
   }
 
   def projects = promise[Seq[Either[Exception, ProjectData]]](strategy, tryProjects) fmap {
-      l: Seq[Either[Exception, ProjectData]] => l map (_.right map toProject)
-    }
+    l: Seq[Either[Exception, ProjectData]] => l map (_.right map toProject)
+  }
 
   def createProject(pr: Project) =
     promise(strat, tryCreateProject(pr)) fmap {

@@ -43,22 +43,3 @@ trait IssueService {
 
   def closeIssue(is: Issue): Promise[Either[Throwable, Issue]]
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

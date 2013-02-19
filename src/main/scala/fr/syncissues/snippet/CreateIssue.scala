@@ -101,22 +101,23 @@ object CreateIssue {
 
   val updateServices = (servs: String) => {
     val chosenServs = for {
-      str <- servs.split("\\|")
+      str <- servs split ("\\|")
       (srv, name) <- availableServs
       if (str == name)
     } yield srv
 
-    services.update(_ => chosenServs)
+    services update (_ => chosenServs)
   }
 
   def updateProjects(srvs: Seq[IPServ]) = {
     val srvProjects = getAllProjects(srvs)
 
-    allProjects.update( _ =>
+    allProjects update { _ =>
       for {
         t <- srvProjects
         p <- t._2
-      } yield t._1 -> p)
+      } yield t._1 -> p
+    }
 
     val common = commonProjects(srvProjects map (_._2)).toList
 
