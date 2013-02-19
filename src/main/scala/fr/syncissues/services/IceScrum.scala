@@ -5,7 +5,7 @@ import model._
 import utils.Conversions._
 import utils.FJ._
 import utils.json.Serializer
-import dispatch.{Promise => _, url => durl, _}
+import dispatch.{ Promise => _, url => durl, _ }
 import net.liftweb.json._
 import FieldSerializer._
 import net.liftweb.json.CustomSerializer
@@ -24,7 +24,7 @@ case class IceScrum(
     Executors.newFixedThreadPool(4))) extends IssueService with ProjectService {
 
   implicit val strat = strategy
-  
+
   implicit val issueSerializer = Serializer[Issue](
     DefaultFormats + new CustomSerializer[Issue](formats => (
       {
@@ -57,8 +57,8 @@ case class IceScrum(
 
   private def projectId(p: Project) = projects fmap {
     s: Seq[Either[Throwable, Project]] => {
-      s find (_.right exists (_.name == p.name)) flatMap (_.right.toOption map (_.id))
-    }.toRight (new Exception("Project %s doesn't exist".format(p.name)))
+        s find (_.right exists (_.name == p.name)) flatMap (_.right.toOption map (_.id))
+      }.toRight(new Exception("Project %s doesn't exist".format(p.name)))
   }
 
   private def withProjectId(p: Project)(f: Int => Promise[Either[Throwable, Issue]]) =
@@ -71,10 +71,14 @@ case class IceScrum(
       for {
         JArray(jfeatures) <- jvalue
         jfeature <- jfeatures
+        if (jfeature \\ "name").toOpt exists {
+          case JString(name) => !name.isEmpty
+          case _ => false
+        }
       } yield jfeature transform {
         case JField("name", JString(s)) => JField("name", JString(s takeWhile (_ != ':') trim))
       }
-    } map (_ fold (e => Seq(Left(e)), Seq() ++ _ map toProject))
+    } map (_ fold (e => Vector(Left(e)), Vector() ++ _ map toProject))
 
   def createProject(pr: Project) =
     Http(durl(url) / team / "feature" << write(pr) <:< headers OK as.lift.Json)
@@ -95,20 +99,20 @@ case class IceScrum(
         jissue <- jissues
         if {
           jissue.children.size > 1 &&
-          jissue \\ "state" != JInt(7) &&  // we want correct and opened issues only
-          ((jissue \\ "name").toOpt exists {
-            case JString(name) => name startsWith project.name
-            case _ => false
-          })
+            jissue \\ "state" != JInt(7) && // we want correct and opened issues only
+            ((jissue \\ "name").toOpt exists {
+              case JString(name) => name startsWith project.name
+              case _ => false
+            })
         }
       } yield jissue
-    } map (_ fold (e => Seq(Left(e)), Seq() ++ _ map toIssue))
+    } map (_ fold (e => Vector(Left(e)), Vector() ++ _ map toIssue))
 
   def createIssue(is: Issue) =
     withProjectId(is.project) { id =>
       Http {
         durl(url) / team / "story" <:< headers <<
-        write(is copy (project = Project(id, is.project.name))) OK as.lift.Json
+          write(is copy (project = Project(id, is.project.name))) OK as.lift.Json
       }.either map (_.right flatMap toIssue)
     }
 

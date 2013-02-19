@@ -34,9 +34,9 @@ case class Mantis(
 
   private def trySeveral[T](fun: => GenTraversableOnce[T]): Seq[Either[Exception, T]] =
     try {
-      Seq() ++ fun map (Right(_))
+      Vector() ++ fun map (Right(_))
     } catch {
-      case e: Exception => Seq(Left(e))
+      case e: Exception => Vector(Left(e))
     }
 
   private def tryCat(projectId: Int) = tryOne {

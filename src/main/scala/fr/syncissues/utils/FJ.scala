@@ -21,7 +21,7 @@ object FJ {
     (implicit strat: Strategy[FJUnit]): FJPromise[A] =  promise(strat, dp())
 
   implicit def fjPromfjListTofjPromSeq[A](prom: FJPromise[FJList[A]]) =
-    prom fmap ((list: FJList[A]) => Seq(list.toCollection.asScala.toSeq: _*))
+    prom fmap ((list: FJList[A]) => list.toCollection.asScala.toSeq)
 
   implicit def funcToEffect[A](sf: A => Unit): Effect[A] = new Effect[A] { def e(a: A) = sf(a) }
 

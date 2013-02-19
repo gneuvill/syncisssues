@@ -35,7 +35,7 @@ case class GitHub(
       JArray(jprojects) <- jvalue
       jproject <- jprojects
     } yield jproject
-  } map (_ fold (e => Seq(Left(e)), Seq() ++ _ map toProject))
+  } map (_ fold (e => Vector(Left(e)), Vector() ++ _ map toProject))
 
   def createProject(pr: Project) =
     Http(durl(url) / "user" / "repos" << write(pr) <:< headers OK as.lift.Json)
@@ -56,7 +56,7 @@ case class GitHub(
         JArray(jissues) <- jvalue
         jissue <- jissues
       } yield jissue
-    } map (_ fold (e => Seq(Left(e)), Seq() ++ _ map (withProject(project) _ andThen toIssue)))
+    } map (_ fold (e => Vector(Left(e)), Vector() ++ _ map (withProject(project) _ andThen toIssue)))
 
   def createIssue(is: Issue) =
     Http(durl(url) / "repos" / owner / is.project.name / "issues" << write(is) <:< headers OK as.lift.Json)
