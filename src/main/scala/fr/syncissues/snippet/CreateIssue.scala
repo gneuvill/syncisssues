@@ -125,7 +125,8 @@ object CreateIssue {
   }
 
   val servsVal = JsRaw(
-    """Array.prototype.slice.call(this.selectedOptions)
+    """Array.prototype.slice.call(this.children)
+       .filter(function(opt) { return opt.selected == true })
        .map(function(opt) { return opt.text })
        .reduce(function(str1, str2){ return str1 + "|" + str2 }, "")""")
 
