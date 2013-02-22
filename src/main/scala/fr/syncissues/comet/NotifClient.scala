@@ -12,12 +12,13 @@ import JsCmds._
 class NotifClient extends CometListener {
   // private var msgs: List[Message] = Nil
 
-  def registerWith = NotifServer
+  private def li(cssClass: String, m: Message) =
+    <li class={"message " + cssClass + " clearable"} onclick={"$(this).animate({top: 0}, 5000).fadeOut('slow', function(){ " + SHtml.ajaxCall("''", s => NotifServer ! ("delete", m)).toJsCmd + "; });"}>{m.content}</li>
 
   private def messageToHtml(m: Message) = m match {
-    case SuccessM(idComp, content) => <li class="success clearable">{content}</li>
-    case InfoM(idComp, content) => <li class="info clearable">{content}</li>
-    case ErrorM(idComp, content) => <li class="error clearable">{content}</li>
+    case SuccessM(idComp, content) => li("success", m)
+    case InfoM(idComp, content) => li("info", m)
+    case ErrorM(idComp, content) => li("error", m)
   }
 
   private def renderMessages: PartialFunction[List[Message], Unit] = {
@@ -26,12 +27,10 @@ class NotifClient extends CometListener {
     }
   }
 
+  def registerWith = NotifServer
+
   override def lowPriority =  renderMessages.asInstanceOf[PartialFunction[Any, Unit]]
 
   def render = ClearClearable
 
 }
-
-
-
-

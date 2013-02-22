@@ -12,6 +12,7 @@ object NotifServer extends LiftActor with ListenerManager {
   def createUpdate = msgs
 
   override def lowPriority = {
+    case ("delete", msg: Message) => msgs = msgs filterNot (_ == msg)
     case msg: Message =>
       msgs ::= msg
       updateListeners()
