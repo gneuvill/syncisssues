@@ -32,7 +32,7 @@ object CreateIssue {
   type IPServ = IssueService with ProjectService
 
   implicit val strat =
-    Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4))
+    Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(32))
 
   val github = SyncIsInjector.github.vend
 
@@ -82,18 +82,18 @@ object CreateIssue {
 
   def showResult(promise: Promise[Either[Throwable, Issue]]) = promise fmap {
     (ei: Either[Throwable, Issue]) =>
-    ei fold (t => ErrorM("", t.getMessage), i => SuccessM("", i.title))
+      ei fold (t => ErrorM("", t.getMessage), i => SuccessM("", i.title))
   } to NotifServer
 
   def clearForm =
-      ("project" :: "title" :: "descr" :: Nil map (SetValById(_, ""))).fold(Noop) {_ & _}
+    ("project" :: "title" :: "descr" :: Nil map (SetValById(_, ""))).fold(Noop) { _ & _ }
 
   def process() = {
     val result = {
       validServices(services) |@|
-      validProject(projectName) |@|
-      validTitle(title) |@|
-      validDescr(descr)
+        validProject(projectName) |@|
+        validTitle(title) |@|
+        validDescr(descr)
     } apply createIssue
 
     result fold (_.list foreach (S.error), _ foreach showResult)
@@ -148,8 +148,8 @@ object CreateIssue {
 
   def render =
     "#servs" #> selServices &
-    "#project" #> selProjects &
-    "#clear" #> SHtml.ajaxButton("Effacer", () => clearForm) &
-    "#title" #> FocusOnLoad(SHtml.textElem(title, "id" -> "title")) &
-    "#descr" #> (SHtml.textareaElem(descr, "id" -> "descr") ++ SHtml.hidden(process))
+      "#project" #> selProjects &
+      "#clear" #> SHtml.ajaxButton("Effacer", () => clearForm) &
+      "#title" #> FocusOnLoad(SHtml.textElem(title, "id" -> "title")) &
+      "#descr" #> (SHtml.textareaElem(descr, "id" -> "descr") ++ SHtml.hidden(process))
 }

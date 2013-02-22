@@ -41,7 +41,7 @@ class SyncIssues extends Observing {
   type PActor = SpecializedLiftActor[Seq[Promise[Seq[Either[Throwable, Project]]]]]
 
   implicit val strat =
-    Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4))
+    Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(32))
 
   implicit lazy val curPage = Page.currentPage
 
@@ -105,12 +105,11 @@ class SyncIssues extends Observing {
         PropertyVar("className", "class")("srvname")
       click ->> {
         if (selectedServices.value contains srv) {
-          projects() = Seq(dummyProject)
+          servIssues(srv)() = Seq()
           selectedServices.value -= srv
           className() = (className.now split " ")
             .filterNot(_ == "selected") mkString " "
         } else {
-          projects() = Seq(dummyProject)
           selectedServices.value += srv
           className() = "selected" + " " + className.now
         }
@@ -122,7 +121,7 @@ class SyncIssues extends Observing {
   }
 
   val projectSelect = Select(Some(dummyProject), projects, (prj: Project) => prj.name) {
-    case Some(prj)  if (prj.id == -999) => for (srv <- selectedServices.value) servIssues(srv)() = Seq()
+    case Some(prj)  if (prj.id == -999) => for (srv <- selectedServices.now) servIssues(srv)() = Seq()
     case Some(prj) => issueActor ! {
       for (srv <- selectedServices.value) yield (srv, srv.issues(prj))
     }
