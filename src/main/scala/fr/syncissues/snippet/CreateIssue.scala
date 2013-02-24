@@ -43,6 +43,8 @@ object CreateIssue {
   val availableServs =
     Seq(github -> "GitHub", icescrum -> "Icescrum", mantis -> "Mantis")
 
+  val (hidServs, hidProject, hidTitle, hidDescr) = ("servs", "project", "title", "descr")
+
   private object allProjects extends RequestVar(Seq(): Seq[(IPServ, Project)])
 
   private object projectName extends RequestVar("")
@@ -54,16 +56,16 @@ object CreateIssue {
   private object services extends RequestVar(List(): Seq[IPServ])
 
   def validServices(ls: Seq[IPServ]) =
-    if (services.size == 0) "Select at least one service".failNel else ls.success
+    if (services.size == 0) (hidServs, "Sélectionnez au moins un service !").failNel else ls.success
 
   def validProject(projectName: String) =
-    if (projectName == "") "You must choose a project".failNel else projectName.success
+    if (projectName == "") (hidProject, "Choisissez un projet !").failNel else projectName.success
 
   def validTitle(title: String) =
-    if (title == "") "Title cannot be empty".failNel else title.success
+    if (title == "") (hidTitle, "Le titre ne peut être vide !").failNel else title.success
 
   def validDescr(descr: String) =
-    if (descr == "") "Description cannot be empty".failNel else descr.success
+    if (descr == "") (hidDescr, "La description ne peut être vide !").failNel else descr.success
 
   def getAllProjects(srvs: Seq[IPServ]) = srvs map { srv =>
     srv -> (
@@ -86,7 +88,7 @@ object CreateIssue {
   } to NotifServer
 
   def clearForm =
-    ("project" :: "title" :: "descr" :: Nil map (SetValById(_, ""))).fold(Noop) { _ & _ }
+    (hidProject :: hidTitle :: hidDescr :: Nil map (SetValById(_, ""))).fold(Noop) { _ & _ }
 
   def process() = {
     val result = {
@@ -96,7 +98,13 @@ object CreateIssue {
         validDescr(descr)
     } apply createIssue
 
-    result fold (_.list foreach (S.error), _ foreach showResult)
+    result fold (
+      el => {
+        val okFields = hidServs :: hidProject :: hidTitle :: hidDescr :: Nil diff (el.list map (_._1))
+        okFields foreach (id => S.appendJs(SetHtml(id + "-error", <span/>)))
+        el.list foreach (t => S.error(t._1 + "-error", t._2))
+      },
+      _ foreach showResult)
   }
 
   val updateServices = (servs: String) => {
@@ -121,7 +129,10 @@ object CreateIssue {
 
     val common = commonProjects(srvProjects map (_._2)).toList
 
-    ReplaceOptions("project", common map (p => (p.name, p.name)), Empty)
+    ReplaceOptions(
+      hidProject,
+      ("", "---- Select ----") :: (common map (p => (p.name, p.name))),
+      Empty)
   }
 
   val servsVal = JsRaw(
@@ -145,12 +156,13 @@ object CreateIssue {
     Seq(),
     Empty,
     projectName.set,
-    "id" -> "project")
+    "id" -> hidProject)
 
   def render =
-    "#servs" #> selServices &
-      "#project" #> selProjects &
+    ("#" + hidServs) #> selServices &
+      ("#" + hidProject) #> selProjects &
       "#clear" #> SHtml.ajaxButton("Effacer", () => clearForm) &
-      "#title" #> FocusOnLoad(SHtml.textElem(title, "id" -> "title")) &
-      "#descr" #> (SHtml.textareaElem(descr, "id" -> "descr") ++ SHtml.hidden(process))
+      ("#" + hidTitle) #> SHtml.textElem(title, "id" -> hidTitle, "class" -> "input-block-level") &
+      ("#" + hidDescr) #> (SHtml.textareaElem(descr, "id" -> hidDescr, "class" -> "input-block-level")
+        ++ SHtml.hidden(process))
 }

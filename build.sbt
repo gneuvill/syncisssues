@@ -22,6 +22,7 @@ libraryDependencies ++= {
     "net.liftweb"             %% "lift-webkit"             % liftVersion        % "compile",
     "net.liftweb"             %% "lift-testkit"            % liftVersion        % "test",
     "net.liftmodules"         %% "lift-jquery-module"      % (liftVersion + "-2.0"),
+    "net.liftmodules"         %% "fobo"                    % (liftVersion + "-0.7.9-SNAPSHOT"),
     "cc.co.scala-reactive"    %% "reactive-web"            % "0.3.0" excludeAll(ExclusionRule(organization = "net.liftweb")),
     "net.databinder.dispatch" %% "dispatch-core"           % "0.9.4",
     "net.databinder.dispatch" %% "dispatch-lift-json"      % "0.9.4" exclude("net.liftweb", "lift-json_2.9.1"),

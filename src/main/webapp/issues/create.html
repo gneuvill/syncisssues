@@ -1,12 +1,61 @@
-<div id="main" data-lift="surround?with=default;at=content">
-  <form data-lift="form.ajax">
-    <div data-lift="CreateIssue">
-      <select multiple id="servs"></select>
-      <select id="project"></select>
-      <input id="title"></input>
-      <textarea id="descr"></textarea>
-      <button id="submit" type="submit">Créer</button>
-      <button id="clear" type="button"></button>
-    </div>
-  </form>
+<div id="main" data-lift="surround?with=default;at=content" class="container">
+    <form data-lift="form.ajax?class=form-horizontal">
+        <fieldset>
+            <legend>Création</legend>
+            <div data-lift="CreateIssue" class="create central">
+                <div class="row-fluid">
+                    <div class="control-group span9">
+                        <label class="control-label" for="servs">Service</label>
+                        <div class="controls">
+                            <select multiple="multiple" id="servs"></select>
+                        </div>
+                    </div>
+                    <div class="span3 control-group error">
+                        <div data-lift="msg?id=servs-error&amp;errorClass=help-inline"></div>
+                    </div>
+                </div>
+                <div class="row-fluid">
+                    <div class="control-group span9">
+                        <label class="control-label" for="project">Projet</label>
+                        <div class="controls">
+                            <select id="project"></select>
+                        </div>
+                    </div>
+                    <div class="span3 control-group error">
+                        <div data-lift="msg?id=project-error&amp;errorClass=help-inline"></div>
+                    </div>
+                </div>
+                <div class="row-fluid">
+                    <div class="control-group span9">
+                        <label class="control-label" for="title">Titre</label>
+                        <div class="controls">
+                            <input id="title" class="input-block-level"></input>
+                        </div>
+                    </div>
+                    <div class="span3 control-group error">
+                        <div data-lift="msg?id=title-error&amp;errorClass=help-inline"></div>
+                    </div>
+                </div>
+                <div class="row-fluid">
+                    <div class="control-group span9">
+                        <label class="control-label" for="descr">Description</label>
+                        <div class="controls">
+                            <textarea id="descr" class="input-block-level"></textarea>
+                        </div>
+                    </div>
+                    <div class="span3 control-group error">
+                        <div data-lift="msg?id=descr-error&amp;errorClass=help-inline"></div>
+                    </div>
+                </div>
+                <div class="row-fluid">
+                    <div class="control-group span9">
+                        <div class="controls">
+                            <button id="clear" type="button" class="btn btn-inverse">del</button>
+                            <button id="submit" type="submit" class="btn btn-primary btn-large">Créer</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+    </form>
 </div>

@@ -28,14 +28,16 @@ case class IceScrum(
   implicit val issueSerializer = Serializer[Issue](
     DefaultFormats + new CustomSerializer[Issue](formats => (
       {
-        case JObject(children) => {
+        case JObject(children) if !children.isEmpty => {
           for {
-            JField("id", JInt(id)) <- children
-            JField("name", JString(name)) <- children
-            JField("description", JString(descr)) <- children
-            JField("state", JInt(state)) <- children
-            JField("feature", JObject(JField("id", JInt(pid)) :: Nil)) <- children
-            val Array(prName, isName) = name split (':')
+            jv <- children
+            val JInt(id) = jv \\ "id"
+            val test = println(jv \\ "name")
+            // val JString(name) = jv \\ "name"
+            val JString(descr) = jv \\ "description"
+            val JInt(state) = jv \\ "state"
+            val JObject(JField("id", JInt(pid)) :: Nil) = jv \\ "feature"
+            val Array(prName, isName) = "DUMMY:DUMMY" split (':')
           } yield Issue(id.toInt, if (state == 7) "closed" else "open", isName.tail, descr,
             Project(pid.toInt, prName))
         }.head

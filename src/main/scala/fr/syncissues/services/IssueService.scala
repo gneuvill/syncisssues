@@ -31,7 +31,7 @@ trait IssueService {
         case Right(false) => createIssue(is)
         case Right(true) =>
           promise[Either[Throwable, Issue]](strat, Left(new Exception("Issue already exists")))
-        case Left(t) => promise[Either[Throwable, Issue]](strat, Left(t))
+        case Left(t) => t.printStackTrace; promise[Either[Throwable, Issue]](strat, Left(t))
       }
     }
 
