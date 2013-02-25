@@ -95,11 +95,10 @@ case class Mantis(
   }
 
   def projects = promise[Seq[Either[Exception, ProjectData]]](strategy, tryProjects) fmap {
-    l: Seq[Either[Exception, ProjectData]] => l map (_.right map toProject)
+    (_: Seq[Either[Exception, ProjectData]]) map (_.right map toProject)
   }
 
-  def createProject(pr: Project) =
-    promise(strat, tryCreateProject(pr)) fmap {
+  def createProject(pr: Project) = promise(strat, tryCreateProject(pr)) fmap {
       (_: Either[Exception, Int]).right map (Project(_, pr.name))
     }
 
@@ -110,12 +109,16 @@ case class Mantis(
 
   def issues(project: Project) =
     promise[Seq[Either[Exception, IssueData]]](strategy, tryIssues(project)) fmap {
-      l: Seq[Either[Exception, IssueData]] => l map (_.right map toIssue)
+      (_: Seq[Either[Exception, IssueData]]) map (_.right map toIssue) filter (_.right forall (_.state == "open"))
     }
 
   def createIssue(is: Issue) =
-    promise(strategy, tryCreate(is)) fmap {
-      (_: Either[Exception, Int]).right map (Issue(_, is.state, is.title, is.body, is.project))
+    withProjectId(is.project) { id =>
+      promise(strategy, tryCreate(is.copy(project = Project(id, is.project.name)))) fmap {
+        (_: Either[Exception, Int]).right map {
+          Issue(_, is.state, is.title, is.body, is.project.copy(id = id))
+        }
+      }
     }
 
   def closeIssue(is: Issue) = promise(strategy, tryClose(is))

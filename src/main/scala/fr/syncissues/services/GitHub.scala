@@ -67,6 +67,4 @@ case class GitHub(
         .PATCH
         .setBody(write(is.copy(state = "closed"))) <:< headers OK as.lift.Json)
         .either map (_.right flatMap (withProject(is.project) _ andThen toIssue))
-
 }
-

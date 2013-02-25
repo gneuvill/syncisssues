@@ -31,7 +31,10 @@ object Conversions {
   def toProject(pdata: ProjectData) = Project(pdata.getId, pdata.getName)
 
   def toIssue(isData: IssueData) =
-    Issue(isData.getId, "open", isData.getSummary, isData.getDescription,
+    Issue(isData.getId,
+      if (isData.getStatus.getId.toInt == 10) "open" else "closed",
+      isData.getSummary,
+      isData.getDescription,
       Project(isData.getProject.getId, isData.getProject.getName))
 
   def toIssueData(category: String, is: Issue) = new IssueData() {

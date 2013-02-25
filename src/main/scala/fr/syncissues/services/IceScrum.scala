@@ -28,19 +28,16 @@ case class IceScrum(
   implicit val issueSerializer = Serializer[Issue](
     DefaultFormats + new CustomSerializer[Issue](formats => (
       {
-        case JObject(children) if !children.isEmpty => {
-          for {
-            jv <- children
-            val JInt(id) = jv \\ "id"
-            val test = println(jv \\ "name")
-            // val JString(name) = jv \\ "name"
-            val JString(descr) = jv \\ "description"
-            val JInt(state) = jv \\ "state"
-            val JObject(JField("id", JInt(pid)) :: Nil) = jv \\ "feature"
-            val Array(prName, isName) = "DUMMY:DUMMY" split (':')
-          } yield Issue(id.toInt, if (state == 7) "closed" else "open", isName.tail, descr,
+        case jo @ JObject(children) if !children.isEmpty =>
+          val JInt(id) = (jo \ "id").toOpt getOrElse JInt(9999)
+          val JString(name) = (jo \ "name").toOpt getOrElse JString("DUMMY")
+          val JString(descr) = (jo \ "description") find (_ != JNull) getOrElse JString("DUMMY")
+          val JInt(state) = (jo \ "state").toOpt getOrElse JInt(-1)
+          val JObject(List(JField("id", JInt(pid)), _*)) =
+            (jo \ "feature").toOpt getOrElse JObject(JField("id", JInt(9999)) :: Nil)
+          val Array(prName, isName) = name split (':')
+          Issue(id.toInt, if (state == 7) "closed" else "open", isName.tail, descr,
             Project(pid.toInt, prName))
-        }.head
       },
       {
         case Issue(number, state, title, body, project) =>
@@ -56,17 +53,6 @@ case class IceScrum(
   val auth = new sun.misc.BASE64Encoder().encode((user + ":" + password).getBytes)
 
   val headers = Map("Content-Type" -> "application/json", "Authorization" -> ("Basic " + auth))
-
-  private def projectId(p: Project) = projects fmap {
-    s: Seq[Either[Throwable, Project]] => {
-        s find (_.right exists (_.name == p.name)) flatMap (_.right.toOption map (_.id))
-      }.toRight(new Exception("Project %s doesn't exist".format(p.name)))
-  }
-
-  private def withProjectId(p: Project)(f: Int => Promise[Either[Throwable, Issue]]) =
-    projectId(p) bind { ei: Either[Throwable, Int] =>
-      ei.fold[Promise[Either[Throwable, Issue]]](t => promise(strat, Left(t)), f)
-    }
 
   def projects =
     Http(durl(url) / team / "feature" <:< headers OK as.lift.Json).either.right map { jvalue =>
@@ -87,12 +73,10 @@ case class IceScrum(
       .either map (_.right flatMap toProject)
 
   def deleteProject(pr: Project) =
-    Http((durl(url) / team / "feature" / pr.id.toString).DELETE <:< headers >
-      (_.getStatusCode == 204)).either
+    Http((durl(url) / team / "feature" / pr.id.toString).DELETE <:< headers > (_.getStatusCode == 204)).either
 
   def issue(id: String, project: Option[Project] = None) =
-    Http(durl(url) / team / "story" / id <:< headers OK as.lift.Json)
-      .either map (_.right flatMap toIssue)
+    Http(durl(url) / team / "story" / id <:< headers OK as.lift.Json).either map (_.right flatMap toIssue)
 
   def issues(project: Project) =
     Http(durl(url) / team / "story" <:< headers OK as.lift.Json).either.right map { jvalue =>

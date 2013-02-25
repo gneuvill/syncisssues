@@ -1,9 +1,10 @@
 package fr.syncissues.services
 
-import fr.syncissues.model.Project
-import fj.control.parallel.Promise
+import fr.syncissues.utils.FJ._
+import fr.syncissues.model.{Issue, Project}
 
-import scala.annotation.tailrec
+import fj.control.parallel.{Promise, Strategy}
+import Promise.promise
 
 trait ProjectService {
 
@@ -13,6 +14,17 @@ trait ProjectService {
 
   def deleteProject(pr: Project): Promise[Either[Throwable, Boolean]]
 
+  protected def projectId(p: Project) = projects fmap {
+    s: Seq[Either[Throwable, Project]] => {
+        s find (_.right exists (_.name == p.name)) flatMap (_.right.toOption map (_.id))
+      }.toRight(new Exception("Project %s doesn't exist".format(p.name)))
+  }
+
+  protected def withProjectId(p: Project)(f: Int => Promise[Either[Throwable, Issue]])
+    (implicit strat: Strategy[fj.Unit])=
+    projectId(p) bind { ei: Either[Throwable, Int] =>
+      ei.fold[Promise[Either[Throwable, Issue]]](t => promise(strat, Left(t)), f)
+    }
 }
 
 object ProjectService {

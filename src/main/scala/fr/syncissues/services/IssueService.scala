@@ -13,8 +13,6 @@ trait IssueService {
   def password: String
   def url: String
 
-  implicit def strat: Strategy[fj.Unit]
-
   def exists(is: Issue): Promise[Either[Throwable, Boolean]] =
     issues(is.project) fmap { (s: Seq[Either[Throwable, Issue]]) =>
       (s map (_.right map (_.title == is.title))).fold[Either[Throwable, Boolean]](Right(false)) {
@@ -25,7 +23,7 @@ trait IssueService {
       }
     }
 
-  def createIssue_?(is: Issue): Promise[Either[Throwable, Issue]] =
+  def createIssue_?(is: Issue)(implicit strat: Strategy[fj.Unit]): Promise[Either[Throwable, Issue]] =
     exists(is) bind { (eib: Either[Throwable, Boolean]) =>
       eib match {
         case Right(false) => createIssue(is)

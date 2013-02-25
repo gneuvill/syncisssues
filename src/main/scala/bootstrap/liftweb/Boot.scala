@@ -63,12 +63,12 @@ object Paths {
   val home = Menu.i("Home") / "index"
   val create = Menu("Créer") / "issues" / "create"
   val syn = Menu("Synchroniser") / "issues" / "sync"
-  val delete = Menu("Effacer") / "issues" / "delete"
+  val delete = Menu("Fermer") / "issues" / "close"
 
   val siteMap = SiteMap(
     home >> LocGroup("homeG") >> FoBo.TBLocInfo.NavHeader,
     create >> LocGroup("createG") >> FoBo.TBLocInfo.NavHeader,
     syn >> LocGroup("synG") >> FoBo.TBLocInfo.NavHeader,
-    delete >> LocGroup("deleteG") >> FoBo.TBLocInfo.NavHeader)
+    delete >> LocGroup("closeG") >> FoBo.TBLocInfo.NavHeader)
 
 }
