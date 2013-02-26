@@ -1,5 +1,21 @@
 html, body {
     height: 100%;
+    font-family: Cantarell,Helvetica,Verdana,sans-serif;
+    font-size: 16px;
+}
+
+h1, h2, legend {
+    font-size: 24px;
+    font-weight: 500;
+}
+
+label, button {
+    font-size: 18px;
+}
+
+input, select, textarea {
+    font-family: Cantarell,Helvetica,Verdana,sans-serif;
+    font-size: 16px;
 }
 
 #wrap {
@@ -41,13 +57,14 @@ html, body {
     background-color: #f5f5f5;
 }
 
-h1, h2, legend {
-    font-weight: 500;
-    letter-spacing: 1px;
-}
-
 .btn {
     font-variant: small-caps;   
+}
+
+#notifs {
+    margin-right: 5%;
+    text-align: center;
+    font-size: 16px;
 }
 
 .create #descr {

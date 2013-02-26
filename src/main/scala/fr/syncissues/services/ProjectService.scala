@@ -1,9 +1,9 @@
 package fr.syncissues.services
 
 import fr.syncissues.utils.FJ._
-import fr.syncissues.model.{Issue, Project}
+import fr.syncissues.model.{ Issue, Project }
 
-import fj.control.parallel.{Promise, Strategy}
+import fj.control.parallel.{ Promise, Strategy }
 import Promise.promise
 
 trait ProjectService {
@@ -21,7 +21,7 @@ trait ProjectService {
   }
 
   protected def withProjectId(p: Project)(f: Int => Promise[Either[Throwable, Issue]])
-    (implicit strat: Strategy[fj.Unit])=
+    (implicit strat: Strategy[fj.Unit]) =
     projectId(p) bind { ei: Either[Throwable, Int] =>
       ei.fold[Promise[Either[Throwable, Issue]]](t => promise(strat, Left(t)), f)
     }

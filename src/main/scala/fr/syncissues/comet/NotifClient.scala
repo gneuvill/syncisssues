@@ -11,16 +11,16 @@ import JsCmds._
 
 class NotifClient extends CometListener {
 
-  private def li(cssClass: String, m: Message) =
-    <li class={ "message " + cssClass + " clearable" }
-  onclick={"$(this).delay(5000).fadeOut('slow', function(){ " +
-    SHtml.ajaxCall("''", s => NotifServer ! ("delete", m)).toJsCmd +
-    "; });"}>{ m.content }</li>
+  private def div(cssClass: String, m: Message) =
+    <div class={ "message " + cssClass + " clearable" }
+      onclick={"$(this).delay(10000).fadeOut('slow', function(){ " +
+        SHtml.ajaxCall("''", s =>
+	  NotifServer ! ("delete", m)).toJsCmd + "; });"}>{ m.content }</div>
 
   private def messageToHtml(m: Message) = m match {
-    case SuccessM(idComp, content) => li("success", m)
-    case InfoM(idComp, content) => li("info", m)
-    case ErrorM(idComp, content) => li("error", m)
+    case SuccessM(idComp, content) => div("alert alert-success", m)
+    case InfoM(idComp, content) => div("alert alert-info", m)
+    case ErrorM(idComp, content) => div("alert alert-error", m)
   }
 
   private def renderMessages: PartialFunction[List[Message], Unit] = {
