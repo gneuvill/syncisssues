@@ -12,11 +12,11 @@ class GitHubSpec extends Specification {
 
   val owner = "gneuvill"
   val repo = "testsync"
-  val github = GitHub(owner, "v32jSblo", owner)
+  val github = GitHub(owner, "toto", owner)
   val title = "CreateIssue1"
   val body = "Descr CreateIssue1"
 
-  var project = Project(999, "testsync")
+  var project = Project(999, "ghtestsync")
 
   "GitHub with %s/%s".format(owner, repo).title
 
