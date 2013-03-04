@@ -67,6 +67,8 @@ input, select, textarea {
     font-size: 16px;
 }
 
+/* creation */
+
 .create #descr {
     height: 200px;
 }
@@ -75,4 +77,50 @@ input, select, textarea {
     height: 55px;
     width: 30%;
     float: right;
+}
+
+/* synchronization */
+
+.sync #services {
+   width: 210px;
+   border: 1px solid #cccccc;
+   background-color: #ffffff;
+   color: #555555;
+   padding: 5px 0% 25px 1.5%;
+   overflow-y: scroll;
+   border-radius: 4px;
+   cursor: pointer;
+}
+
+.sync #services > .name {
+   padding: 1px 1% 2px 0;
+   width: 95%;
+   border: 1px solid #ffffff;
+   border-radius: 4px;
+}
+
+.sync .selected {
+   background-color: #379bea;
+   color: #ffffff;
+}
+
+.sync .services-issues {
+   display: block;
+   clear: both;
+   background-color: red;
+   margin: auto;
+}
+
+.sync .service-or-buttons {
+   float: left;
+}
+
+.sync .service-or-buttons > .name {
+   text-align: center;
+   font-weight: bold;
+}
+
+.sync .service-or-buttons > .issues {
+   width: 50%;
+   margin: auto;
 }

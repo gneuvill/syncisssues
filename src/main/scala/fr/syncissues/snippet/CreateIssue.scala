@@ -41,7 +41,7 @@ object CreateIssue {
   val mantis = SyncIsInjector.mantis.vend
 
   val availableServs =
-    Seq(github -> "GitHub", icescrum -> "Icescrum", mantis -> "Mantis")
+    Seq(github -> "GitHub", icescrum -> "IceScrum", mantis -> "Mantis")
 
   val (hidServs, hidProject, hidTitle, hidDescr) = ("servs", "project", "title", "descr")
 
@@ -161,7 +161,7 @@ object CreateIssue {
   def render =
     ("#" + hidServs) #> selServices &
       ("#" + hidProject) #> selProjects &
-      "#clear" #> SHtml.ajaxButton("Effacer", () => clearForm) &
+      "#clear" #> SHtml.ajaxButton("Ré-initialiser", () => clearForm) &
       ("#" + hidTitle) #> SHtml.textElem(title, "id" -> hidTitle, "class" -> "input-block-level") &
       ("#" + hidDescr) #> (SHtml.textareaElem(descr, "id" -> hidDescr, "class" -> "input-block-level")
         ++ SHtml.hidden(process))
