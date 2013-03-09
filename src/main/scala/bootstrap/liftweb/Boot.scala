@@ -51,6 +51,7 @@ class Boot {
     // let's use reactive-web
     Reactions.init(true)
 
+    // let's use FoBo
     FoBo.InitParam.ToolKit = FoBo.Bootstrap222
     FoBo.InitParam.ToolKit = FoBo.FontAwesome200
     FoBo.init()

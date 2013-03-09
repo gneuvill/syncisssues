@@ -18,6 +18,10 @@ input, select, textarea {
     font-size: 16px;
 }
 
+select {
+   height: auto;
+}
+
 #wrap {
     min-height: 100%;
     height: auto !important;
@@ -121,6 +125,38 @@ input, select, textarea {
 }
 
 .sync .service-or-buttons > .issues {
-   width: 50%;
+   width: 80%;
    margin: auto;
+}
+
+.sync .issue {
+   position: relative;
+   clear: both;
+   height: 35px;
+   min-height: 35px;
+   margin-bottom: 2%;
+   border: 1px solid #cccccc;
+   border-radius: 4px;
+   background-color: white;
+}
+
+.sync .issue > div {
+   height: 100%;
+   line-height: 2em;
+   text-align: center;
+   text-overflow: ellipsis;
+   overflow: hidden;
+   white-space: nowrap;
+}
+
+.sync .issue > .id {
+   width: 14%;
+   background-color: #F9F9F9;
+   border-radius: 4px 0 0 4px;
+}
+
+.sync .issue > .name {
+   border-radius: 0 4px 4px 0;
+   margin-left: 1%;
+   cursor: pointer;
 }

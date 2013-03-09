@@ -17,15 +17,16 @@ import net.liftweb._
 import http.{jquery => _, _}
 import SHtml._
 import common._
-import util.{ Cell => _, _ }
+import util._
 import Helpers._
-import js.JsCmds._
+import js.JsCmds.Noop
 import actor.SpecializedLiftActor
 
 import reactive._
 import web._
 import html._
 import javascript._
+import JsExp._
 import JsTypes._
 
 import scalaz.syntax.std.indexedSeq._
@@ -48,12 +49,14 @@ class SyncIssues extends Observing {
 
   implicit lazy val curPage = Page.currentPage
 
+  implicit object IssueOrdering extends Ordering[Issue] {
+    def compare(is1: Issue, is2: Issue) =
+      is1.number compare is2.number
+  }
+
   val github = SyncIsInjector.github.vend
-
   val icescrum = SyncIsInjector.icescrum.vend
-
   val mantis = SyncIsInjector.mantis.vend
-
   val services = github :: icescrum :: mantis :: Nil
 
   val selectedServices = BufferSignal[IPServ]()
@@ -79,23 +82,66 @@ class SyncIssues extends Observing {
     ds => (ds.toIndexedSeq map (Option(_: IPServ)) intersperse None).zipWithIndex
   })
 
+  sealed trait Document extends JsStub
+  sealed trait JQuery extends JsStub {
+    var fn: JQuery
+    def init(selector: $[JsString], context: JsStub): JQuery
+    def ready(fun: Func0Lit[JsObj]): JQuery
+    def bind[P <: JsAny](event: $[JsString], fun: Function[P]): JQuery
+    def attr(name: $[JsString], value: $[JsString]): $[JsString]
+    def show(): $[JsVoid]
+    def hide(): $[JsVoid]
+    def popover(obj: $[JsObj]): $[JsVoid]
+  }
+  sealed trait Console extends JsStub {
+    def log(s: $[JsAny]): $[JsVoid]
+  }
+
+  val console = jsProxy[Console]('console)
+  val doc = jsProxy[Document]('document)
+  val jq = jsProxy[JQuery]('jQuery)
+  val cometLoader = jq.fn.init("#comet-signal", doc)
+  Javascript {
+    val binder = Function { ev: $[JsAny] =>
+      jq.fn.init(".issue", doc).popover(
+        Object(
+          new JsProp("placement", "right"),
+          new JsProp("trigger", "hover")))
+    }
+    val handler = new Func0Lit(() =>
+      jq.fn.init(".services-issues", doc).bind("DOMNodeInserted", binder)
+    )
+    jq.fn.init("", doc).ready(handler)
+  }      
+
+  def showWork[T](w: => T) = {
+    Javascript { cometLoader.show() }
+    val work = w
+    Javascript { cometLoader.hide() }
+    work
+  }
+
   val projectActor = new PActor {
     def messageHandler = {
-      case s => projects() = dummyProject :: (commonProjects {
-        s map (_.claim map {
-          case Right(prj) => prj
-          case Left(t) => t.printStackTrace; dummyProject
-        })
-      } filterNot (_ == dummyProject)).toList
+      case s => showWork {
+        projects() = dummyProject :: (commonProjects {
+          s map (_.claim map {
+            case Right(prj) => prj
+            case Left(t) => t.printStackTrace; dummyProject
+          })
+        } filterNot (_ == dummyProject)).toList
+      }
     }
   }
 
   val issueActor = new IActor {
     def messageHandler = {
-      case seq => seq foreach {
-        _ match {
-          case (srv, prom) => servIssues(srv)() =
-            prom.claim flatMap (_.right.toSeq)
+      case seq => showWork {
+        seq foreach {
+          _ match {
+            case (srv, prom) =>
+              servIssues(srv)() = (prom.claim flatMap (_.right.toSeq)).sorted
+          }
         }
       }
     }
@@ -150,10 +196,13 @@ class SyncIssues extends Observing {
               className() = "selected" + " " + className.now
             }
           }
+          ".id *" #> is.number &
           ".name" #> click &
           ".name" #> className &
           ".name *" #> is.title
-        }
+        } &
+        ".issue [data-title]" #> unquote(encJs(is.title)) &
+        ".issue [data-content]" #> unquote(encJs(is.body.slice(0, 300) + "..."))
       } signal
     }
 
@@ -178,7 +227,7 @@ class SyncIssues extends Observing {
             ".name" #> Noop &
             ".issues" #> Noop
         }
-      }
+      } 
     } signal
   }
 
@@ -199,16 +248,6 @@ class SyncIssues extends Observing {
   }
 
   // ###### Styling stuff
-
-  sealed trait Document extends JsStub
-  sealed trait JQuery extends JsStub {
-    var fn: JQuery
-    def init(selector: $[JsString], context: JsStub): JQuery
-    def attr(name: $[JsString], value: $[JsString]): $[JsString]
-  }
-
-  val doc = jsProxy[Document]('document)
-  val jq = jsProxy[JQuery]('jQuery)
 
   val nbrSrvs = Var(0) <<: (selectedServices map { seq =>
     if (seq.size == 0) 1 else seq.size
@@ -243,5 +282,3 @@ class SyncIssues extends Observing {
       "#project" #> projectSelect &
       ".services-issues" #> srvIssuesRepeat
 }
-
-

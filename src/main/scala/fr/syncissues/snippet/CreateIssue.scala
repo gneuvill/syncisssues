@@ -79,16 +79,20 @@ object CreateIssue {
     for {
       srv <- servs
       srvPr <- allProjects.get find (t => t._1 == srv && t._2.name == projectName)
-    } yield srv.createIssue_?(
-      Issue(title = title, body = descr, project = Project(srvPr._2.id, srvPr._2.name)))
+    } yield (srv, srv.createIssue_?(
+      Issue(title = title, body = descr, project = Project(srvPr._2.id, srvPr._2.name))))
 
-  def showResult(promise: Promise[Either[Throwable, Issue]]) = promise fmap {
+  def showResult(res: (IPServ, Promise[Either[Throwable, Issue]])) = res._2 fmap {
     (ei: Either[Throwable, Issue]) =>
-      ei fold (t => ErrorM("", t.getMessage), i => SuccessM("", i.title))
+      ei fold (
+        t => ErrorM("", "An issue could not be created in %s because :\n%s"
+          .format(res._1.getClass.getSimpleName, t.getMessage)),
+        i => SuccessM("", "%s has been created in " 
+         .format(i.title, res._1.getClass.getSimpleName)))
   } to NotifServer
 
   def clearForm =
-    (hidProject :: hidTitle :: hidDescr :: Nil map (SetValById(_, ""))).fold(Noop) { _ & _ }
+    (hidServs :: hidProject :: hidTitle :: hidDescr :: Nil map (SetValById(_, ""))).fold(Noop) { _ & _ }
 
   def process() = {
     val result = {
@@ -153,7 +157,7 @@ object CreateIssue {
     }.toJsCmd)
 
   def selProjects = SHtml.untrustedSelect(
-    Seq(),
+    Seq(("", "---- Select ----")),
     Empty,
     projectName.set,
     "id" -> hidProject)

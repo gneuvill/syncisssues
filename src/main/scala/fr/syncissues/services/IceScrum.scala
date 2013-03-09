@@ -30,8 +30,8 @@ case class IceScrum(
       {
         case jo @ JObject(children) if !children.isEmpty =>
           val JInt(id) = (jo \ "id").toOpt getOrElse JInt(9999)
-          val JString(name) = (jo \ "name").toOpt getOrElse JString("DUMMY")
-          val JString(descr) = (jo \ "description") find (_ != JNull) getOrElse JString("DUMMY")
+          val JString(name) = (jo \ "name").toOpt getOrElse JString("NO-NAME")
+          val JString(descr) = (jo \ "description") find (_ != JNull) getOrElse JString("")
           val JInt(state) = (jo \ "state").toOpt getOrElse JInt(-1)
           val JObject(List(JField("id", JInt(pid)), _*)) =
             (jo \ "feature").toOpt getOrElse JObject(JField("id", JInt(9999)) :: Nil)
@@ -85,11 +85,12 @@ case class IceScrum(
         jissue <- jissues
         if {
           jissue.children.size > 1 &&
-            jissue \\ "state" != JInt(7) && // we want correct and opened issues only
-            ((jissue \\ "name").toOpt exists {
-              case JString(name) => name startsWith project.name
-              case _ => false
-            })
+          jissue \\ "type" == JInt(2) && // 'default' (bug) type
+          jissue \\ "state" != JInt(7) && // we want correct and opened issues only
+          ((jissue \\ "feature").toOpt exists {
+            case JObject(List(JField("id", JInt(pid)), _*)) => pid == 29 //project.id
+            case _ => false
+          })
         }
       } yield jissue
     } map (_ fold (e => Vector(Left(e)), Vector() ++ _ map toIssue))
