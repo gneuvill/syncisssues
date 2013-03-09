@@ -88,7 +88,7 @@ case class IceScrum(
           jissue \\ "type" == JInt(2) && // 'default' (bug) type
           jissue \\ "state" != JInt(7) && // we want correct and opened issues only
           ((jissue \\ "feature").toOpt exists {
-            case JObject(List(JField("id", JInt(pid)), _*)) => pid == 29 //project.id
+            case JObject(List(JField("id", JInt(pid)), _*)) => pid == project.id
             case _ => false
           })
         }
