@@ -4,7 +4,7 @@ version := "0.0.1"
 
 organization := "fr.syncissues"
 
-scalaVersion := "2.9.2"
+scalaVersion := "2.10.0"
 
 seq(webSettings: _*)
 
@@ -17,15 +17,15 @@ scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimise")
 net.virtualvoid.sbt.graph.Plugin.graphSettings
 
 libraryDependencies ++= {
-  val liftVersion = "2.5-M3"
+  val liftVersion = "2.5-RC2"
   Seq(
     "net.liftweb"             %% "lift-webkit"             % liftVersion        % "compile",
     "net.liftweb"             %% "lift-testkit"            % liftVersion        % "test",
-    "net.liftmodules"         %% "lift-jquery-module"      % (liftVersion + "-2.0"),
-    "net.liftmodules"         %% "fobo"                    % (liftVersion + "-0.7.9-SNAPSHOT"),
+    "net.liftmodules"         %% "lift-jquery-module"      % (liftVersion + "-2.2"),
+    "net.liftmodules"         %% "fobo"                    % (liftVersion + "-0.9.3-SNAPSHOT"),
     "cc.co.scala-reactive"    %% "reactive-web"            % "0.3.0" excludeAll(ExclusionRule(organization = "net.liftweb")),
     "net.databinder.dispatch" %% "dispatch-core"           % "0.9.4",
-    "net.databinder.dispatch" %% "dispatch-lift-json"      % "0.9.4" exclude("net.liftweb", "lift-json_2.9.1"),
+    "net.databinder.dispatch" %  "dispatch-lift-json_2.9.2" % "0.9.5" exclude("net.liftweb", "lift-json_2.9.1"),
     "org.scalaz"              %% "scalaz-core"             % "7.0.0-M7",
     "org.specs2"              %% "specs2"                  % "1.11"             % "test",
     "org.eclipse.jetty"        % "jetty-webapp"            % "7.5.4.v20111024"  % "container; compile",
