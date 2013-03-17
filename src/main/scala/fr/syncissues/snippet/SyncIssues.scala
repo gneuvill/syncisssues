@@ -51,7 +51,7 @@ class SyncIssues extends Observing {
 
   implicit object IssueOrdering extends Ordering[Issue] {
     def compare(is1: Issue, is2: Issue) =
-      is1.number compare is2.number
+      is1.title compare is2.title
   }
 
   val github = SyncIsInjector.github.vend
