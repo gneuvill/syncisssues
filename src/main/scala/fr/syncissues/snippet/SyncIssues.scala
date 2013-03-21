@@ -9,6 +9,7 @@ import utils._
 import FJ._
 import comet._
 
+import scala.language.postfixOps
 import scala.collection.JavaConverters._
 import scala.xml._
 import NodeSeq._
@@ -50,8 +51,7 @@ class SyncIssues extends Observing {
   implicit lazy val curPage = Page.currentPage
 
   implicit object IssueOrdering extends Ordering[Issue] {
-    def compare(is1: Issue, is2: Issue) =
-      is1.title compare is2.title
+    def compare(is1: Issue, is2: Issue) = is1.title compare is2.title
   }
 
   val github = SyncIsInjector.github.vend
@@ -121,9 +121,15 @@ class SyncIssues extends Observing {
     work
   }
 
+  def resetIssues() = {
+    servIssues.values foreach (_() = Seq())
+    servSelectedIssues.values foreach (_() = Seq())
+  }
+
   val projectActor = new PActor {
     def messageHandler = {
       case s => showWork {
+        resetIssues()
         projects() = dummyProject :: (commonProjects {
           s map (_.claim map {
             case Right(prj) => prj
@@ -137,6 +143,7 @@ class SyncIssues extends Observing {
   val issueActor = new IActor {
     def messageHandler = {
       case seq => showWork {
+        resetIssues()
         seq foreach {
           _ match {
             case (srv, prom) =>
@@ -154,7 +161,6 @@ class SyncIssues extends Observing {
         PropertyVar("className", "class")("name")
       click ->> {
         if (selectedServices.value contains srv) {
-          servIssues(srv)() = Seq()
           selectedServices.value -= srv
           className() = (className.now split " ")
             .filterNot(_ == "selected") mkString " "

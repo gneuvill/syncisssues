@@ -12,7 +12,7 @@ resolvers ++= Seq("snapshots"     at "http://oss.sonatype.org/content/repositori
                 "releases"        at "http://oss.sonatype.org/content/repositories/releases"
                 )
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimise")
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimise", "-feature")
 
 net.virtualvoid.sbt.graph.Plugin.graphSettings
 

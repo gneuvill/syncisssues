@@ -52,7 +52,7 @@ case class IceScrum(
 
   val auth = new sun.misc.BASE64Encoder().encode((user + ":" + password).getBytes)
 
-  val headers = Map("Content-Type" -> "application/json", "Authorization" -> ("Basic " + auth))
+  val headers = Map("Content-Type" -> "application/json; charset=UTF-8", "Authorization" -> ("Basic " + auth))
 
   def projects =
     Http(durl(url) / team / "feature" <:< headers OK as.lift.Json).either.right map { jvalue =>
@@ -64,12 +64,12 @@ case class IceScrum(
           case _ => false
         }
       } yield jfeature transform {
-        case JField("name", JString(s)) => JField("name", JString(s takeWhile (_ != ':') trim))
+        case JField("name", JString(s)) => JField("name", JString(s.takeWhile(_ != ':').trim))
       }
     } map (_ fold (e => Vector(Left(e)), Vector() ++ _ map toProject))
 
   def createProject(pr: Project) =
-    Http(durl(url) / team / "feature" << write(pr) <:< headers OK as.lift.Json)
+    Http(durl(url) / team / "feature" << write(pr) <:< headers setBodyEncoding("UTF-8") OK as.lift.Json)
       .either map (_.right flatMap toProject)
 
   def deleteProject(pr: Project) =
@@ -87,7 +87,7 @@ case class IceScrum(
           jissue <- jissues
           if {
             jissue.children.size > 1 &&
-            jissue \\ "type" == JInt(2) && // 'default' (bug) type
+            jissue \\ "type" == JInt(2) && // 'défaut' (bug) type
             jissue \\ "state" != JInt(7) && // we want correct and opened issues only
             ((jissue \\ "feature").toOpt exists {
               case JObject(List(JField("id", JInt(pid)), _*)) => pid == id
@@ -102,8 +102,8 @@ case class IceScrum(
   def createIssue(is: Issue) =
     withProjectId(is.project) { id =>
       Http {
-        durl(url) / team / "story" <:< headers <<
-        write(is copy (project = Project(id, is.project.name))) OK as.lift.Json
+        (durl(url) / team / "story" <:< headers << write(is copy (project = Project(id, is.project.name))))
+        .setBodyEncoding("UTF-8") OK as.lift.Json
       }.either map (_.right flatMap toIssue)
     }
 
