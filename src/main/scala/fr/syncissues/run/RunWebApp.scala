@@ -13,7 +13,7 @@ object RunWebApp extends App {
 
   val context = new WebAppContext()
   context.setServer(server)
-  context.setWar("/usr/local/src/syncissues/src/main/webapp")
+  context.setWar("/usr/local/src/syncisssues/src/main/webapp")
 
   val context0: ContextHandler = new ContextHandler();
   context0.setHandler(context)
