@@ -87,7 +87,7 @@ object CreateIssue {
       ei fold (
         t => ErrorM("", "An issue could not be created in %s because :\n%s"
           .format(res._1.getClass.getSimpleName, t.getMessage)),
-        i => SuccessM("", "%s has been created in " 
+        i => SuccessM("", "%s has been created in %s" 
          .format(i.title, res._1.getClass.getSimpleName)))
   } to NotifServer
 

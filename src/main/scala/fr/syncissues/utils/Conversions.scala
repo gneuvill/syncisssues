@@ -1,5 +1,7 @@
 package fr.syncissues.utils
 
+import scala.language.implicitConversions
+
 import fr.syncissues._
 import utils.json.Serializer
 import model._
