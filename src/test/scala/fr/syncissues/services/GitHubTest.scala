@@ -45,7 +45,7 @@ class GitHubSpec extends Specification {
       .orSome(Left(new Exception("Time out !"))))
 
   step {
-    github.createProject(project).claim() match {
+    github.createProject(project).claim match {
       case Right(pr) => project = pr; true
       case Left(t) => t.printStackTrace; false
     }
@@ -110,7 +110,7 @@ class GitHubSpec extends Specification {
   }
 
   step {
-    github.deleteProject(project).claim() fold (e => {e.printStackTrace; false}, b => b)
+    github.deleteProject(project).claim fold (e => {e.printStackTrace; false}, b => b)
   }  
 
 }

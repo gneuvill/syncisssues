@@ -12,7 +12,7 @@ resolvers ++= Seq("snapshots"     at "http://oss.sonatype.org/content/repositori
                 "releases"        at "http://oss.sonatype.org/content/repositories/releases"
                 )
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimise")
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimise", "-feature")
 
 net.virtualvoid.sbt.graph.Plugin.graphSettings
 
@@ -28,7 +28,7 @@ libraryDependencies ++= {
     "net.databinder.dispatch" %  "dispatch-lift-json_2.9.2" % "0.9.5" exclude("net.liftweb", "lift-json_2.9.1"),
     "org.scalaz"              %% "scalaz-core"             % "7.0.0-M7",
     "org.specs2"              %% "specs2"                  % "1.11"             % "test",
-    "org.eclipse.jetty"        % "jetty-webapp"            % "7.5.4.v20111024"  % "container; compile",
+    "org.eclipse.jetty"        % "jetty-webapp"            % "8.1.9.v20130131"  % "container; compile",
     "org.functionaljava"       % "functionaljava"          % "3.1",
     "biz.futureware.mantis"    % "mantis-axis-soap-client" % "1.2.9",
     "ch.qos.logback"           % "logback-classic"         % "1.0.6"

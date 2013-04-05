@@ -38,7 +38,7 @@ case class GitHub(
   } map (_ fold (e => Vector(Left(e)), Vector() ++ _ map toProject))
 
   def createProject(pr: Project) =
-    Http(durl(url) / "user" / "repos" << write(pr) <:< headers OK as.lift.Json)
+    Http(durl(url) / "user" / "repos" << write(pr) <:< headers setBodyEncoding("UTF-8") OK as.lift.Json)
       .either map (_.right flatMap toProject)
 
   def deleteProject(pr: Project) =
@@ -59,8 +59,10 @@ case class GitHub(
     } map (_ fold (e => Vector(Left(e)), Vector() ++ _ map (withProject(project) _ andThen toIssue)))
 
   def createIssue(is: Issue) =
-    Http(durl(url) / "repos" / owner / is.project.name / "issues" << write(is) <:< headers OK as.lift.Json)
-      .either map (_.right flatMap (withProject(is.project) _ andThen toIssue))
+    Http {
+      (durl(url) / "repos" / owner / is.project.name / "issues" << write(is) <:< headers)
+        .setBodyEncoding("UTF-8") OK as.lift.Json
+    }.either map (_.right flatMap (withProject(is.project) _ andThen toIssue))
 
   def closeIssue(is: Issue) =
       Http((durl(url) / "repos" / owner / is.project.name / "issues" / is.number.toString)

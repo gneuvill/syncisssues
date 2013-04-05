@@ -20,10 +20,12 @@ trait ProjectService {
       }.toRight(new Exception("Project %s doesn't exist".format(p.name)))
   }
 
-  protected def withProjectId(p: Project)(f: Int => Promise[Either[Throwable, Issue]])
-    (implicit strat: Strategy[fj.Unit]) =
+  protected implicit val throwProm = (t: Throwable) => Left(t)
+
+  protected def withProjectId[P](p: Project)(f: Int => Promise[P])
+    (implicit strat: Strategy[fj.Unit], toP: Throwable => P) =
     projectId(p) bind { ei: Either[Throwable, Int] =>
-      ei.fold[Promise[Either[Throwable, Issue]]](t => promise(strat, Left(t)), f)
+      ei.fold[Promise[P]](t => promise(strat, toP(t)), f)
     }
 }
 

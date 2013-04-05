@@ -1,13 +1,16 @@
 package fr.syncissues.utils
 
+import scala.language.{implicitConversions, higherKinds}
 import scala.collection.JavaConverters._
+
 import dispatch.Promise
+import net.liftweb.actor.LiftActor
 
 import fj.{Unit => FJUnit, P1, F, Effect}
 import fj.data.{List => FJList}
 import fj.control.parallel.{Actor, Strategy, Promise => FJPromise}
 import FJPromise._
-import net.liftweb.actor.LiftActor
+
 
 object FJ {
 
