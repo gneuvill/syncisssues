@@ -17,8 +17,8 @@ case class GitHub(
   password: String,
   owner: String,
   url: String = "https://api.github.com",
-  strategy: Strategy[fj.Unit] = Strategy.executorStrategy[fj.Unit](
-      Executors.newFixedThreadPool(4))) extends IssueService with ProjectService {
+  strategy: Strategy[fj.Unit] =
+    Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4))) extends IssueService with ProjectService {
 
   implicit val strat = strategy
 
