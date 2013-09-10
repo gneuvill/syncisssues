@@ -105,8 +105,8 @@ class SyncIssues extends Observing {
     val binder = Function { ev: $[JsAny] =>
       jq.fn.init(".issue", doc).popover(
         Object(
-          new JsProp("placement", "right"),
-          new JsProp("trigger", "hover")))
+          ("placement", "right"),
+          ("trigger", "hover")))
     }
     val handler = new Func0Lit(() =>
       jq.fn.init(".services-issues", doc).bind("DOMNodeInserted", binder)
