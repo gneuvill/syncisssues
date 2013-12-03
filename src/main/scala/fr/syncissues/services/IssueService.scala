@@ -1,7 +1,5 @@
 package fr.syncissues.services
 
-import dispatch.{Promise => _, _}
-
 import fj.control.parallel.{Promise, Strategy}
 import Promise._
 import fr.syncissues._

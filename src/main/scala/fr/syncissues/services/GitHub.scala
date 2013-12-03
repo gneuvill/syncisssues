@@ -1,10 +1,12 @@
 package fr.syncissues.services
 
 import fr.syncissues._
+import java.util.concurrent.ExecutorService
 import model._
+import scala.concurrent.ExecutionContext
 import utils.FJ._
 import utils.Conversions._
-import dispatch.{Promise => _, url => durl, _}
+import dispatch.{url => durl, _}
 import net.liftweb.json._
 
 import fj.control.parallel.Promise
@@ -17,10 +19,11 @@ case class GitHub(
   password: String,
   owner: String,
   url: String = "https://api.github.com",
-  strategy: Strategy[fj.Unit] =
-    Strategy.executorStrategy[fj.Unit](Executors.newFixedThreadPool(4))) extends IssueService with ProjectService {
+  executor: ExecutorService =
+    Executors.newFixedThreadPool(4)) extends IssueService with ProjectService {
 
-  implicit val strat = strategy
+  implicit val strat = Strategy.executorStrategy[fj.Unit](executor)
+  implicit val exec = ExecutionContext.fromExecutorService(executor)
 
   private val auth = new sun.misc.BASE64Encoder().encode((user + ":" + password).getBytes())
 
@@ -38,7 +41,7 @@ case class GitHub(
   } map (_ fold (e => Vector(Left(e)), Vector() ++ _ map toProject))
 
   def createProject(pr: Project) =
-    Http(durl(url) / "user" / "repos" << write(pr) <:< headers setBodyEncoding("UTF-8") OK as.lift.Json)
+    Http(durl(url) / "user" / "repos" << write(pr) <:< headers OK as.lift.Json)
       .either map (_.right flatMap toProject)
 
   def deleteProject(pr: Project) =
@@ -47,7 +50,7 @@ case class GitHub(
   def issue(number: String, project: Option[Project]) =
     project.toRight(new Exception("Missing Project value")).right
       .map(pr => Http(durl(url) / "repos" / owner / pr.name / "issues" / number <:< headers OK as.lift.Json).either)
-      .fold(e => Http.promise(Left(e)), _ map (_.right flatMap (withProject(project.get) _ andThen toIssue)))
+      .fold(e => Future(Left(e)), _ map (_.right flatMap (withProject(project.get) _ andThen toIssue)))
 
   def issues(project: Project) =
     Http(durl(url) / "repos" / owner / project.name / "issues" <:< headers <<? Map("per_page" -> "100") OK as.lift.Json)
@@ -60,8 +63,7 @@ case class GitHub(
 
   def createIssue(is: Issue) =
     Http {
-      (durl(url) / "repos" / owner / is.project.name / "issues" << write(is) <:< headers)
-        .setBodyEncoding("UTF-8") OK as.lift.Json
+      (durl(url) / "repos" / owner / is.project.name / "issues" << write(is) <:< headers) OK as.lift.Json
     }.either map (_.right flatMap (withProject(is.project) _ andThen toIssue))
 
   def closeIssue(is: Issue) =

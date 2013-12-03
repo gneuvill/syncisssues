@@ -157,7 +157,7 @@ object CreateIssue {
     }.toJsCmd)
 
   def selProjects = SHtml.untrustedSelect(
-    Seq(("", "---- Select ----")),
+    Seq(("", "---- Select ----")): Seq[Tuple2[String, String]],
     Empty,
     projectName.set,
     "id" -> hidProject)

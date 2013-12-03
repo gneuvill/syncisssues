@@ -4,7 +4,7 @@ version := "0.0.1"
 
 organization := "fr.syncissues"
 
-scalaVersion := "2.10.0"
+scalaVersion := "2.10.3"
 
 seq(webSettings: _*)
 
@@ -17,20 +17,21 @@ scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimise", "-feature")
 net.virtualvoid.sbt.graph.Plugin.graphSettings
 
 libraryDependencies ++= {
-  val liftVersion = "2.5-RC2"
+  val liftVersion = "2.6"
+  val liftMinVersion = "-M2"
   Seq(
-    "net.liftweb"             %% "lift-webkit"             % liftVersion        % "compile",
-    "net.liftweb"             %% "lift-testkit"            % liftVersion        % "test",
-    "net.liftmodules"         %% "lift-jquery-module"      % (liftVersion + "-2.2"),
-    "net.liftmodules"         %% "fobo"                    % (liftVersion + "-0.9.3-SNAPSHOT"),
-    "cc.co.scala-reactive"    %% "reactive-web"            % "0.3.0" excludeAll(ExclusionRule(organization = "net.liftweb")),
-    "net.databinder.dispatch" %% "dispatch-core"           % "0.9.4",
-    "net.databinder.dispatch" %  "dispatch-lift-json_2.9.2" % "0.9.5" exclude("net.liftweb", "lift-json_2.9.1"),
-    "org.scalaz"              %% "scalaz-core"             % "7.0.0-M7",
-    "org.specs2"              %% "specs2"                  % "1.11"             % "test",
-    "org.eclipse.jetty"        % "jetty-webapp"            % "8.1.9.v20130131"  % "container; compile",
-    "org.functionaljava"       % "functionaljava"          % "3.1",
-    "biz.futureware.mantis"    % "mantis-axis-soap-client" % "1.2.9",
-    "ch.qos.logback"           % "logback-classic"         % "1.0.6"
+    "net.liftweb"             %% "lift-webkit"                         % (liftVersion + liftMinVersion) % "compile",
+    "net.liftweb"             %% "lift-testkit"                        % (liftVersion + liftMinVersion) % "test",
+    "net.liftmodules"         %% ("lift-jquery-module_" + liftVersion) % "2.5",
+    "net.liftmodules"         %% ("fobo_" + liftVersion)               % "1.1",
+    "cc.co.scala-reactive"    %% "reactive-web"                        % "0.3.2.1" excludeAll(ExclusionRule(organization = "net.liftweb")),
+    "net.databinder.dispatch" %% "dispatch-core"                       % "0.11.0",
+    "net.databinder.dispatch" %%  "dispatch-lift-json"                 % "0.11.0" exclude("net.liftweb", "lift-json_2.10"),
+    "org.scalaz"              %% "scalaz-core"                         % "7.1.0-M4",
+    "org.specs2"              %% "specs2"                              % "2.3.3"                        % "test",
+    "org.eclipse.jetty"        % "jetty-webapp"                        % "9.1.0.v20131115"              % "container; compile",
+    "org.functionaljava"       % "functionaljava"                      % "3.1",
+    "biz.futureware.mantis"    % "mantis-axis-soap-client"             % "1.2.9",
+    "ch.qos.logback"           % "logback-classic"                     % "1.0.6"
   )
 }

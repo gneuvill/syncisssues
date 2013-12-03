@@ -1,6 +1,7 @@
 package fr.syncissues.services
 
 import fr.syncissues._
+import java.util.concurrent.ExecutorService
 import model._
 import utils.FJ._
 import utils.Conversions._
@@ -18,12 +19,12 @@ case class Mantis(
   user: String,
   password: String,
   url: String = "http://localhost/mantisbt-1.2.12/api/soap/mantisconnect.php",
-  strategy: Strategy[fj.Unit] = Strategy.executorStrategy[fj.Unit](
-    Executors.newFixedThreadPool(4))) extends IssueService with ProjectService {
+  executor: ExecutorService =
+    Executors.newFixedThreadPool(4)) extends IssueService with ProjectService {
 
   private val mantisConnect = new MantisConnectLocator().getMantisConnectPort(new URL(url))
 
-  implicit val strat = strategy
+  implicit val strat = Strategy.executorStrategy[fj.Unit](executor)
 
   private def tryOne[T](fun: => T): Either[Exception, T] =
     try {
@@ -94,7 +95,7 @@ case class Mantis(
       else Left(new Exception("Issue could not be updated")))
   }
 
-  def projects = promise[Seq[Either[Exception, ProjectData]]](strategy, tryProjects) fmap {
+  def projects = promise[Seq[Either[Exception, ProjectData]]](strat, tryProjects) fmap {
     (_: Seq[Either[Exception, ProjectData]]) map (_.right map toProject)
   }
 
@@ -105,22 +106,22 @@ case class Mantis(
   def deleteProject(pr: Project) = promise(strat, tryDeleteProject(pr))
 
   def issue(issueId: String, project: Option[Project] = None) =
-    promise(strategy, tryIssue(issueId)) fmap ((_: Either[Exception, IssueData]).right map toIssue)
+    promise(strat, tryIssue(issueId)) fmap ((_: Either[Exception, IssueData]).right map toIssue)
 
   def issues(project: Project) =
-    promise[Seq[Either[Exception, IssueData]]](strategy, tryIssues(project)) fmap {
+    promise[Seq[Either[Exception, IssueData]]](strat, tryIssues(project)) fmap {
       (_: Seq[Either[Exception, IssueData]]) map (_.right map toIssue) filter (_.right forall (_.state == "open"))
     }
 
   def createIssue(is: Issue) =
     withProjectId(is.project) { id =>
-      promise(strategy, tryCreate(is.copy(project = Project(id, is.project.name)))) fmap {
+      promise(strat, tryCreate(is.copy(project = Project(id, is.project.name)))) fmap {
         (_: Either[Exception, Int]).right map {
           Issue(_, is.state, is.title, is.body, is.project.copy(id = id))
         }
       }
     }
 
-  def closeIssue(is: Issue) = promise(strategy, tryClose(is))
+  def closeIssue(is: Issue) = promise(strat, tryClose(is))
 
 }
