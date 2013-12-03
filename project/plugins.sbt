@@ -1,7 +1,8 @@
 
-libraryDependencies += "com.github.siasia" %% "xsbt-web-plugin" % "0.12.0-0.2.11.1"
+addSbtPlugin("com.earldouglas" % "xsbt-web-plugin" % "0.5.0")
 
-addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.7.0")
+addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.7.4")
+
 
 
 

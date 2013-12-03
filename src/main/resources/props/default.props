@@ -1,13 +1,13 @@
-github.user=gneuvill
-github.password=***REMOVED***
-github.owner=EsupPortail
-github.url=https://api.github.com
+github.user=
+github.password=
+github.owner=
+github.url=
 
-icescrum.user=gneuvill
-icescrum.password=<5-HKz)j
-icescrum.team=DEVQ
-icescrum.url=https://icescrum.univ-rennes1.fr/ws/p
+icescrum.user=
+icescrum.password=
+icescrum.team=
+icescrum.url=
 
-mantis.user=gneuvill
-mantis.password=<5-HKz)j
-mantis.url=http://mantis.univ-rennes1.fr/api/soap/mantisconnect.php
+mantis.user=
+mantis.password=
+mantis.url=

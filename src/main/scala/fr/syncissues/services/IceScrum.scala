@@ -1,11 +1,13 @@
 package fr.syncissues.services
 
 import fr.syncissues._
+import java.util.concurrent.ExecutorService
 import model._
+import scala.concurrent.ExecutionContext
 import utils.Conversions._
 import utils.FJ._
 import utils.json.Serializer
-import dispatch.{ Promise => _, url => durl, _ }
+import dispatch.{ url => durl, _ }
 import net.liftweb.json._
 import FieldSerializer._
 import net.liftweb.json.CustomSerializer
@@ -20,10 +22,11 @@ case class IceScrum(
   password: String,
   team: String,
   url: String = "http://localhost:8181/icescrum/ws/p",
-  strategy: Strategy[fj.Unit] = Strategy.executorStrategy[fj.Unit](
-    Executors.newFixedThreadPool(4))) extends IssueService with ProjectService {
+  executor: ExecutorService =
+    Executors.newFixedThreadPool(4)) extends IssueService with ProjectService {
 
-  implicit val strat = strategy
+  implicit val strat = Strategy.executorStrategy[fj.Unit](executor)
+  implicit val exec = ExecutionContext.fromExecutorService(executor)
 
   implicit val issueSerializer = Serializer[Issue](
     DefaultFormats + new CustomSerializer[Issue](formats => (
@@ -69,7 +72,7 @@ case class IceScrum(
     } map (_ fold (e => Vector(Left(e)), Vector() ++ _ map toProject))
 
   def createProject(pr: Project) =
-    Http(durl(url) / team / "feature" << write(pr) <:< headers setBodyEncoding("UTF-8") OK as.lift.Json)
+    Http(durl(url) / team / "feature" << write(pr) <:< headers OK as.lift.Json)
       .either map (_.right flatMap toProject)
 
   def deleteProject(pr: Project) =
@@ -102,8 +105,7 @@ case class IceScrum(
   def createIssue(is: Issue) =
     withProjectId(is.project) { id =>
       Http {
-        (durl(url) / team / "story" <:< headers << write(is copy (project = Project(id, is.project.name))))
-        .setBodyEncoding("UTF-8") OK as.lift.Json
+        durl(url) / team / "story" <:< headers << write(is.copy(project = Project(id, is.project.name))) OK as.lift.Json
       }.either map (_.right flatMap toIssue)
     }
 
