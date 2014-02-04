@@ -1,10 +1,13 @@
 package fr.syncissues.services
 
+import java.util.concurrent.TimeUnit
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import dispatch._
 import fr.syncissues.model._
 import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 class GitHubSpec extends Specification {
   sequential
@@ -20,32 +23,29 @@ class GitHubSpec extends Specification {
 
   "GitHub with %s/%s".format(owner, repo).title
 
-  lazy val createdIssue =
-    github.createIssue(Issue(title = title, body = body, project = project))
-      .claim(4L, TimeUnit.SECONDS)
-      .orSome(Left(new Exception("Time out !")))
+  lazy val createdIssue = Await.result(
+      github.createIssue(Issue(title = title, body = body, project = project)),
+      Duration(4, TimeUnit.SECONDS))
 
   lazy val ghIssue =
     createdIssue.right flatMap {
-      is => github.issue(is.number.toString, Some(is.project))
-        .claim(4L, TimeUnit.SECONDS)
-        .orSome(Left(new Exception("Time out !")))
+      is => Await.result(
+        github.issue(is.number.toString, Some(is.project)),
+        Duration(4, TimeUnit.SECONDS))
     }
 
   lazy val ghIssues =
     createdIssue.right map {
-      is => github.issues(is.project)
-        .claim(4L, TimeUnit.SECONDS)
-        .orSome(Seq(Left(new Exception("Time out !"))))
+      is => Await.result(github.issues(is.project), Duration(4, TimeUnit.SECONDS))
     } fold (e => Seq(Left(e)), s => s)
 
   lazy val closedIssue =
-    createdIssue.right flatMap (is => github.closeIssue(is.copy(state = "closed"))
-      .claim(4L, TimeUnit.SECONDS)
-      .orSome(Left(new Exception("Time out !"))))
+    createdIssue.right flatMap (is => Await.result(
+      github.closeIssue(is.copy(state = "closed")),
+      Duration(4, TimeUnit.SECONDS)))
 
   step {
-    github.createProject(project).claim match {
+    Await.result(github.createProject(project), Duration(4, TimeUnit.SECONDS)) match {
       case Right(pr) => project = pr; true
       case Left(t) => t.printStackTrace; false
     }
@@ -110,7 +110,9 @@ class GitHubSpec extends Specification {
   }
 
   step {
-    github.deleteProject(project).claim fold (e => {e.printStackTrace; false}, b => b)
+    Await
+      .result(github.deleteProject(project), Duration(4, TimeUnit.SECONDS))
+      .fold (e => {e.printStackTrace; false}, b => b)
   }  
 
 }

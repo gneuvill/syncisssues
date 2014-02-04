@@ -1,19 +1,18 @@
 package fr.syncissues.services
 
-import fr.syncissues._
-import java.util.concurrent.ExecutorService
-import model._
-import utils.FJ._
-import utils.Conversions._
-
-import scala.collection.GenTraversableOnce
-import fj.control.parallel.Promise
-import Promise._
-import fj.control.parallel.Strategy
-import java.util.concurrent.Executors
-import java.net.URL
-import javax.xml.soap.SOAPFault
 import biz.futureware.mantis.rpc.soap.client._
+import fr.syncissues._
+import fr.syncissues.model._
+import fr.syncissues.utils.Conversions._
+import java.net.URL
+import java.util.concurrent.{ExecutorService, Executors}
+import scala.collection.GenTraversableOnce
+import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext._
+import scala.concurrent.Future
+import scalaz.{\/, DisjunctionFunctions}
+import scalaz.Scalaz._
+import scalaz.\/._
 
 case class Mantis(
   user: String,
@@ -22,22 +21,17 @@ case class Mantis(
   executor: ExecutorService =
     Executors.newFixedThreadPool(4)) extends IssueService with ProjectService {
 
+  implicit val exec = fromExecutor(executor, _.printStackTrace)
+
   private val mantisConnect = new MantisConnectLocator().getMantisConnectPort(new URL(url))
 
-  implicit val strat = Strategy.executorStrategy[fj.Unit](executor)
+  private def tryOne[T](fun: => T): Throwable \/ T = fromTryCatch(fun)
 
-  private def tryOne[T](fun: => T): Either[Exception, T] =
+  private def trySeveral[T](fun: => Seq[T]): Seq[Throwable \/ T] = // fromTryCatch(fun).sequence
     try {
-      Right(fun)
+      Vector() ++ fun map (_.right)
     } catch {
-      case e: Exception => Left(e)
-    }
-
-  private def trySeveral[T](fun: => GenTraversableOnce[T]): Seq[Either[Exception, T]] =
-    try {
-      Vector() ++ fun map (Right(_))
-    } catch {
-      case e: Exception => Vector(Left(e))
+      case e: Exception => Vector(e.left)
     }
 
   private def tryCat(projectId: Int) = tryOne {
@@ -52,7 +46,7 @@ case class Mantis(
     mantisConnect.mc_projects_get_user_accessible(user, password)
   }
 
-  private def tryCreateProject(pr: Project): Either[Exception, Int] = tryOne {
+  private def tryCreateProject(pr: Project): Throwable \/ Int = tryOne {
     mantisConnect.mc_project_add(user, password, toProjectData(pr))
   }
 
@@ -65,63 +59,65 @@ case class Mantis(
   }
 
   private def tryIssues(project: Project, pageNb: Int = 1, perPage: Int = 100) =
-    tryProjectId(project).right.toSeq flatMap { pid =>
+    tryProjectId(project).toList flatMap { pid =>
       trySeveral {
         mantisConnect.mc_project_get_issues(user, password, pid, pageNb, perPage)
       }
     }
 
-  private def tryCreate(is: Issue): Either[Exception, Int] =
+  private def tryCreate(is: Issue): Throwable \/ Int =
     for {
-      pid <- tryProjectId(is.project).right
-      cat <- tryCat(pid).right
+      pid <- tryProjectId(is.project)
+      cat <- tryCat(pid)
       int <- tryOne {
         mantisConnect.mc_issue_add(user, password, toIssueData(cat, is))
-      }.right
+      }
     } yield int
 
   private def tryClose(is: Issue) = {
     val cli = is.copy(state = "closed")
     val eiClosed =
       for {
-        cat <- tryCat(is.project.id).right
+        cat <- tryCat(is.project.id)
         closed <- tryOne {
           mantisConnect.mc_issue_update(user, password, cli.number, toIssueData(cat, cli))
-        }.right
+        }
       } yield closed
-    eiClosed fold (
-      e => Left(e),
-      if (_) Right(cli)
-      else Left(new Exception("Issue could not be updated")))
+    eiClosed fold(
+      e => e.left,
+      if (_) cli.right
+      else new Exception("Issue could not be updated").left)
   }
 
-  def projects = promise[Seq[Either[Exception, ProjectData]]](strat, tryProjects) fmap {
-    (_: Seq[Either[Exception, ProjectData]]) map (_.right map toProject)
+  def projects = Future(tryProjects) map {
+    _ map (_ map (_.toProject))
   }
 
-  def createProject(pr: Project) = promise(strat, tryCreateProject(pr)) fmap {
-      (_: Either[Exception, Int]).right map (Project(_, pr.name))
+  def createProject(pr: Project) = Future(tryCreateProject(pr)) map {
+      _ map (Project(_, pr.name))
     }
 
-  def deleteProject(pr: Project) = promise(strat, tryDeleteProject(pr))
+  def deleteProject(pr: Project) = Future(tryDeleteProject(pr))
 
   def issue(issueId: String, project: Option[Project] = None) =
-    promise(strat, tryIssue(issueId)) fmap ((_: Either[Exception, IssueData]).right map toIssue)
+    Future(tryIssue(issueId)) map (_ map (_.toIssue))
 
   def issues(project: Project) =
-    promise[Seq[Either[Exception, IssueData]]](strat, tryIssues(project)) fmap {
-      (_: Seq[Either[Exception, IssueData]]) map (_.right map toIssue) filter (_.right forall (_.state == "open"))
+    Future(tryIssues(project)) map { s ⇒
+      for {
+        ei ← s map (_ map (_.toIssue))
+        if ei forall (_.state == "open")
+      } yield ei
     }
 
   def createIssue(is: Issue) =
     withProjectId(is.project) { id =>
-      promise(strat, tryCreate(is.copy(project = Project(id, is.project.name)))) fmap {
-        (_: Either[Exception, Int]).right map {
+      Future(tryCreate(is.copy(project = Project(id, is.project.name)))).map[Throwable \/ Issue] {
+        _ map {
           Issue(_, is.state, is.title, is.body, is.project.copy(id = id))
         }
       }
     }
 
-  def closeIssue(is: Issue) = promise(strat, tryClose(is))
-
+  def closeIssue(is: Issue) = Future(tryClose(is))
 }

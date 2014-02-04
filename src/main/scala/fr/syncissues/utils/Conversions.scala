@@ -10,6 +10,10 @@ import Serialization.write
 import biz.futureware.mantis.rpc.soap.client._
 import java.math.BigInteger
 
+import scalaz.{\/, \/-, -\/}
+import scalaz.Scalaz._
+import scalaz.\/._
+
 object Conversions {
 
   implicit def IntToBigInteger(i: Int) = new BigInteger(i.toString)
@@ -18,26 +22,28 @@ object Conversions {
 
   def write[T <: AnyRef](t: T)(implicit serializer: Serializer[T, String]) =  serializer.serialize(t)
 
-  def toEntity[T](json: JValue)(implicit serializer: Serializer[T, String], mf: Manifest[T]): Either[Throwable, T] =
-    try {
-      implicit val format = serializer.format
-      Right(json.extract[T])
-    } catch {
-      case e: MappingException => Left(e)
-    }
+  def toEntity[T](json: JValue)(implicit serializer: Serializer[T, String], mf: Manifest[T]): Throwable \/ T = {
+    implicit val format = serializer.format
+    fromTryCatch(json.extract)
+  }
 
-  def toProject(implicit serializer: Serializer[Project, String]) = toEntity[Project] _
+  implicit class ConvertibleJValue(jvalue: JValue) {
+    def toProject(implicit serializer: Serializer[Project, String]) = toEntity[Project](jvalue)
+    def toIssue(implicit serializer: Serializer[Issue, String]) = toEntity[Issue](jvalue)
+  }
 
-  def toIssue(implicit serializer: Serializer[Issue, String]) = toEntity[Issue] _
+  implicit class ConvertibleProjectData(pdata: ProjectData) {
+    def toProject = Project(pdata.getId, pdata.getName)
+  }
 
-  def toProject(pdata: ProjectData) = Project(pdata.getId, pdata.getName)
-
-  def toIssue(isData: IssueData) =
-    Issue(isData.getId,
-      if (isData.getStatus.getId.toInt == 10) "open" else "closed",
-      isData.getSummary,
-      isData.getDescription,
-      Project(isData.getProject.getId, isData.getProject.getName))
+  implicit class ConvertibleIssueData(isData: IssueData) {
+    def toIssue =
+      Issue(isData.getId,
+        if (isData.getStatus.getId.toInt == 10) "open" else "closed",
+        isData.getSummary,
+        isData.getDescription,
+        Project(isData.getProject.getId, isData.getProject.getName))
+  }
 
   def toIssueData(category: String, is: Issue) = new IssueData() {
     setSummary(is.title)
