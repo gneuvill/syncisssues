@@ -4,6 +4,8 @@ import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import fr.syncissues.model._
 import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 class MantisSpec extends Specification {
 
@@ -16,24 +18,18 @@ class MantisSpec extends Specification {
   val mantis = Mantis(username, password)
 
   lazy val mantisIssue =
-    mantis.issue("1")
-      .claim(4L, TimeUnit.SECONDS)
-      .orSome(Left(new Exception("Time out !")))
+    Await.result(mantis.issue("1"), Duration(4, TimeUnit.SECONDS))
 
   lazy val mantisIssues =
-    mantis.issues(project)
-      .claim(4L, TimeUnit.SECONDS)
-      .orSome(Vector(Left(new Exception("Time out !"))))
+    Await.result(mantis.issues(project), Duration(4, TimeUnit.SECONDS))
 
-  lazy val createdIssue =
-    mantis.createIssue(Issue(title = "CreatedBug1", body = "Descr CreatedBug1", project = project))
-      .claim(4L, TimeUnit.SECONDS)
-      .orSome(Left(new Exception("Time out !")))
+  lazy val createdIssue = Await.result(
+    mantis.createIssue(Issue(title = "CreatedBug1", body = "Descr CreatedBug1", project = project)),
+    Duration(4, TimeUnit.SECONDS))
 
-  lazy val closedIssue =
-    createdIssue.right flatMap (is => mantis.closeIssue(is.copy(state = "closed"))
-      .claim(4L, TimeUnit.SECONDS)
-      .orSome(Left(new Exception("Time out !"))))
+  lazy val closedIssue = Await.result(
+    createdIssue.right flatMap (is => mantis.closeIssue(is.copy(state = "closed"))),
+    Duration(4, TimeUnit.SECONDS))
 
   "The issue method" should {
 

@@ -1,21 +1,20 @@
 package fr.syncissues.services
 
+import dispatch.{url ⇒ durl, _}
 import fr.syncissues._
-import java.util.concurrent.ExecutorService
-import model._
-import scala.concurrent.ExecutionContext
-import utils.Conversions._
-import utils.FJ._
-import utils.json.Serializer
-import dispatch.{ url => durl, _ }
+import fr.syncissues.model._
+import fr.syncissues.utils.Conversions._
+import fr.syncissues.utils.json.Serializer
+import java.util.concurrent.{ExecutorService, Executors}
 import net.liftweb.json._
-import FieldSerializer._
-import net.liftweb.json.CustomSerializer
+import net.liftweb.json.FieldSerializer._
+import scala.concurrent.ExecutionContext
+import ExecutionContext._ 
+import scala.concurrent.Future
 
-import fj.control.parallel.Promise
-import Promise._
-import fj.control.parallel.Strategy
-import java.util.concurrent.Executors
+import scalaz.{\/, \/-, -\/}
+import scalaz.Scalaz._
+import scalaz.\/._
 
 case class IceScrum(
   user: String,
@@ -25,13 +24,12 @@ case class IceScrum(
   executor: ExecutorService =
     Executors.newFixedThreadPool(4)) extends IssueService with ProjectService {
 
-  implicit val strat = Strategy.executorStrategy[fj.Unit](executor)
-  implicit val exec = ExecutionContext.fromExecutorService(executor)
+  implicit val exec = fromExecutor(executor, _.printStackTrace)
 
   implicit val issueSerializer = Serializer[Issue](
-    DefaultFormats + new CustomSerializer[Issue](formats => (
+    DefaultFormats + new CustomSerializer[Issue](formats ⇒ (
       {
-        case jo @ JObject(children) if !children.isEmpty =>
+        case jo @ JObject(children) if !children.isEmpty ⇒
           val JInt(id) = (jo \ "id").toOpt getOrElse JInt(9999)
           val JString(name) = (jo \ "name").toOpt getOrElse JString("NO-NAME")
           val JString(descr) = (jo \ "description") find (_ != JNull) getOrElse JString("")
@@ -43,7 +41,7 @@ case class IceScrum(
             Project(pid.toInt, prName))
       },
       {
-        case Issue(number, state, title, body, project) =>
+        case Issue(number, state, title, body, project) ⇒
           JObject(JField("story", JObject(List(
             JField("type", JInt(2)),
             JField("id", JInt(number)),
@@ -57,61 +55,67 @@ case class IceScrum(
 
   val headers = Map("Content-Type" -> "application/json; charset=UTF-8", "Authorization" -> ("Basic " + auth))
 
-  def projects =
-    Http(durl(url) / team / "feature" <:< headers OK as.lift.Json).either.right map { jvalue =>
-      for {
-        JArray(jfeatures) <- jvalue
-        jfeature <- jfeatures
-        if (jfeature \\ "name").toOpt exists {
-          case JString(name) => !name.isEmpty
-          case _ => false
-        }
-      } yield jfeature transform {
-        case JField("name", JString(s)) => JField("name", JString(s.takeWhile(_ != ':').trim))
-      }
-    } map (_ fold (e => Vector(Left(e)), Vector() ++ _ map toProject))
+  def projects = {
+    val maybeJVals =
+      Http(durl(url) / team / "feature" <:< headers OK as.lift.Json)
+        .either
+        .map(_.disjunction.map { jvalue ⇒
+          for {
+            JArray(jfeatures) ← jvalue
+            jfeature ← jfeatures
+            if (jfeature \\ "name").toOpt exists {
+              case JString(name) ⇒ !name.isEmpty
+              case _ ⇒ false
+            }
+          } yield jfeature transform {
+            case JField("name", JString(s)) ⇒ JField("name", JString(s.takeWhile(_ != ':').trim))
+          }
+        })
+    val maybesJVal = maybeJVals map (_.sequence)
+    maybesJVal map (_ map (_ flatMap (_.toProject)))
+  }
 
   def createProject(pr: Project) =
     Http(durl(url) / team / "feature" << write(pr) <:< headers OK as.lift.Json)
-      .either map (_.right flatMap toProject)
+      .either map (_.disjunction flatMap (_.toProject))
 
   def deleteProject(pr: Project) =
-    Http((durl(url) / team / "feature" / pr.id.toString).DELETE <:< headers > (_.getStatusCode == 204)).either
+    Http((durl(url) / team / "feature" / pr.id.toString).DELETE <:< headers > (_.getStatusCode == 204)).either map (_.disjunction)
 
   def issue(id: String, project: Option[Project] = None) =
-    Http(durl(url) / team / "story" / id <:< headers OK as.lift.Json).either map (_.right flatMap toIssue)
+    Http(durl(url) / team / "story" / id <:< headers OK as.lift.Json).either map (_.disjunction flatMap (_.toIssue))
 
-  def issues(project: Project) = {
-    implicit val throwProm = (t: Throwable) => Vector(Left(t))
-    withProjectId(project) { id =>
-      Http(durl(url) / team / "story" <:< headers OK as.lift.Json).either.right map { jvalue =>
-        for {
-          JArray(jissues) <- jvalue
-          jissue <- jissues
-          if {
-            jissue.children.size > 1 &&
-            jissue \\ "type" == JInt(2) && // 'défaut' (bug) type
-            jissue \\ "state" != JInt(7) && // we want correct and opened issues only
-            ((jissue \\ "feature").toOpt exists {
-              case JObject(List(JField("id", JInt(pid)), _*)) => pid == id
-              case _ => false
-            })
-          }
-        } yield jissue
-      } map (_ fold (throwProm, Vector() ++ _ map toIssue))
-    }
-  }
+  // def issues(project: Project) = {
+  //   implicit val throwProm = (t: Throwable) ⇒ Vector(Left(t))
+  //   withProjectId(project) { id ⇒
+  //     Http(durl(url) / team / "story" <:< headers OK as.lift.Json).either.right map { jvalue ⇒
+  //       for {
+  //         JArray(jissues) ← jvalue
+  //         jissue ← jissues
+  //         if {
+  //           jissue.children.size > 1 &&
+  //           jissue \\ "type" == JInt(2) && // 'défaut' (bug) type
+  //           jissue \\ "state" != JInt(7) && // we want correct and opened issues only
+  //           ((jissue \\ "feature").toOpt exists {
+  //             case JObject(List(JField("id", JInt(pid)), _*)) ⇒ pid == id
+  //             case _ ⇒ false
+  //           })
+  //         }
+  //       } yield jissue
+  //     } map (_ fold (throwProm, Vector() ++ _ map toIssue))
+  //   }
+  // }
 
-  def createIssue(is: Issue) =
-    withProjectId(is.project) { id =>
-      Http {
-        durl(url) / team / "story" <:< headers << write(is.copy(project = Project(id, is.project.name))) OK as.lift.Json
-      }.either map (_.right flatMap toIssue)
-    }
+  // def createIssue(is: Issue) =
+  //   withProjectId(is.project) { id ⇒
+  //     Http {
+  //       durl(url) / team / "story" <:< headers << write(is.copy(project = Project(id, is.project.name))) OK as.lift.Json
+  //     }.either map (_.right flatMap toIssue)
+  //   }
 
-  def closeIssue(is: Issue) =
-    Http {
-      (durl(url) / team / "story" / is.number.toString / "done" <:< headers).POST OK as.lift.Json
-    }.either map (_.right flatMap toIssue)
+  // def closeIssue(is: Issue) =
+  //   Http {
+  //     (durl(url) / team / "story" / is.number.toString / "done" <:< headers).POST OK as.lift.Json
+  //   }.either map (_.right flatMap toIssue)
 
 }

@@ -8,9 +8,9 @@ scalaVersion := "2.10.3"
 
 seq(webSettings: _*)
 
-resolvers ++= Seq("snapshots"     at "http://oss.sonatype.org/content/repositories/snapshots",
-                "releases"        at "http://oss.sonatype.org/content/repositories/releases"
-                )
+resolvers ++= Seq(
+  "snapshots"     at "http://oss.sonatype.org/content/repositories/snapshots",
+  "releases"      at "http://oss.sonatype.org/content/repositories/releases")
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimise", "-feature")
 

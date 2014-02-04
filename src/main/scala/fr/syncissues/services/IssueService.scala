@@ -1,41 +1,40 @@
 package fr.syncissues.services
 
-import fj.control.parallel.{Promise, Strategy}
-import Promise._
 import fr.syncissues._
 import model._
-import utils.FJ._
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scalaz.{\/, \/-, -\/}
+import scalaz.Scalaz._
+import scalaz.std.anyVal.booleanInstance.disjunction
 
 trait IssueService {
   def user: String
   def password: String
   def url: String
 
-  def exists(is: Issue): Promise[Either[Throwable, Boolean]] =
-    issues(is.project) fmap { (s: Seq[Either[Throwable, Issue]]) =>
-      (s map (_.right map (_.title == is.title))).fold[Either[Throwable, Boolean]](Right(false)) {
-        (ei1, ei2) => for {
-          b1 <- ei1.right
-          b2 <- ei2.right
-        } yield b1 || b2
-      }
+  def exists(is: Issue)(implicit e: ExecutionContext): Future[Throwable \/ Boolean] = {
+    implicit val or = disjunction
+    issues(is.project) map {
+      _.map(_ map (_.title == is.title)).fold(false.right)(_ +++ _)
     }
+  }
 
-  def createIssue_?(is: Issue)(implicit strat: Strategy[fj.Unit]): Promise[Either[Throwable, Issue]] =
-    exists(is) bind { (eib: Either[Throwable, Boolean]) =>
+  def createIssue_?(is: Issue)(implicit e: ExecutionContext): Future[Throwable \/ Issue] =
+    exists(is) flatMap { eib ⇒
       eib match {
-        case Right(false) => createIssue(is)
-        case Right(true) =>
-          promise[Either[Throwable, Issue]](strat, Left(new Exception("Issue already exists")))
-        case Left(t) => t.printStackTrace; promise[Either[Throwable, Issue]](strat, Left(t))
+        case \/-(false) => createIssue(is)
+        case \/-(true) =>
+          Future(new Exception("Issue already exists").left)
+        case -\/(t) => t.printStackTrace; Future(t.left)
       }
     }
 
-  def issue(id: String, project: Option[Project]): Promise[Either[Throwable, Issue]]
+  def issue(id: String, project: Option[Project]): Future[Throwable \/ Issue]
 
-  def issues(project: Project): Promise[Seq[Either[Throwable, Issue]]]
+  def issues(project: Project): Future[Seq[Throwable \/ Issue]]
 
-  def createIssue(is: Issue): Promise[Either[Throwable, Issue]]
+  def createIssue(is: Issue): Future[Throwable \/ Issue]
 
-  def closeIssue(is: Issue): Promise[Either[Throwable, Issue]]
+  def closeIssue(is: Issue): Future[Throwable \/ Issue]
 }
