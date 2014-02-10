@@ -19,6 +19,7 @@ net.virtualvoid.sbt.graph.Plugin.graphSettings
 libraryDependencies ++= {
   val liftVersion = "2.6"
   val liftMinVersion = "-M2"
+  val scalazVersion = "7.1.0-M4"
   Seq(
     "net.liftweb"             %% "lift-webkit"                         % (liftVersion + liftMinVersion) % "compile",
     "net.liftweb"             %% "lift-testkit"                        % (liftVersion + liftMinVersion) % "test",
@@ -27,7 +28,8 @@ libraryDependencies ++= {
     "cc.co.scala-reactive"    %% "reactive-web"                        % "0.3.2.1" excludeAll(ExclusionRule(organization = "net.liftweb")),
     "net.databinder.dispatch" %% "dispatch-core"                       % "0.11.0",
     "net.databinder.dispatch" %%  "dispatch-lift-json"                 % "0.11.0" exclude("net.liftweb", "lift-json_2.10"),
-    "org.scalaz"              %% "scalaz-core"                         % "7.1.0-M4",
+    "org.scalaz"              %% "scalaz-core"                         % scalazVersion,
+    "org.scalaz"              %% "scalaz-concurrent"                   % scalazVersion,
     "org.specs2"              %% "specs2"                              % "2.3.3"                        % "test",
     "org.eclipse.jetty"        % "jetty-webapp"                        % "9.1.0.v20131115"              % "container; compile",
     "org.functionaljava"       % "functionaljava"                      % "3.1",

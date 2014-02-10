@@ -4,34 +4,29 @@ import fr.syncissues.utils.FJ._
 import fr.syncissues.model.{ Issue, Project }
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scalaz.\/
+import scalaz._
 import scalaz.Scalaz._
+import scalaz.concurrent.Task
 
 trait ProjectService {
 
-  def projects: Future[Seq[Throwable \/ Project]]
+  def projects: Task[Vector[Project]]
 
   def createProject(pr: Project): Future[Throwable \/ Project]
 
   def deleteProject(pr: Project): Future[Throwable \/ Boolean]
 
-  protected def projectId(p: Project)(implicit e: ExecutionContext): Future[Throwable \/ Int] =
-    projects map {
-      s ⇒ {
-        for {
-          ei ← s find (_ exists (_.name == p.name))
-          prj ← ei.toOption
-        } yield prj.id
-      } \/> (new Exception("Project %s doesn't exist".format(p.name)))
+  protected def projectId(p: Project): Task[Int] =
+    projects flatMap { ps ⇒
+      (ps find (_.name == p.name)).cata(
+        prj ⇒ Task.now(prj.id),
+        Task.fail(new Exception(s"Project ${p.name} doesn't exist")))
     }
 
-  protected implicit def throwProm[E <: Throwable,T]: E ⇒ E \/ T = (e: E) ⇒ e.left
+  //protected implicit def throwProm[E <: Throwable,T]: E ⇒ E \/ T = (e: E) ⇒ e.left
 
-  protected def withProjectId[P](p: Project)(f: Int => Future[P])
-    (implicit e: ExecutionContext, toP: Throwable => P): Future[P] =
-    projectId(p) flatMap { ei ⇒
-      ei.fold[Future[P]](t ⇒ Future(toP(t)), f)
-    }
+  protected def withProjectId[P](p: Project)(f: Int => Task[P]): Task[P] =
+    projectId(p) flatMap f
 }
 
 object ProjectService {

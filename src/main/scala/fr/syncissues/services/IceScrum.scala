@@ -1,6 +1,6 @@
 package fr.syncissues.services
 
-import dispatch.{url ⇒ durl, _}
+import dispatch.{url => durl, _}
 import fr.syncissues._
 import fr.syncissues.model._
 import fr.syncissues.utils.Conversions._
@@ -8,13 +8,13 @@ import fr.syncissues.utils.json.Serializer
 import java.util.concurrent.{ExecutorService, Executors}
 import net.liftweb.json._
 import net.liftweb.json.FieldSerializer._
-import scala.concurrent.ExecutionContext
-import ExecutionContext._ 
-import scala.concurrent.Future
+import scala.concurrent.{Future, Await, ExecutionContext}
+import ExecutionContext._
 
-import scalaz.{\/, \/-, -\/}
+import scalaz.\/
 import scalaz.Scalaz._
 import scalaz.\/._
+import scalaz.concurrent.Task
 
 case class IceScrum(
   user: String,
@@ -59,7 +59,7 @@ case class IceScrum(
     val maybeJVals =
       Http(durl(url) / team / "feature" <:< headers OK as.lift.Json)
         .either
-        .map(_.disjunction.map { jvalue ⇒
+        .map(_.disjunction map { jvalue ⇒
           for {
             JArray(jfeatures) ← jvalue
             jfeature ← jfeatures
@@ -82,8 +82,8 @@ case class IceScrum(
   def deleteProject(pr: Project) =
     Http((durl(url) / team / "feature" / pr.id.toString).DELETE <:< headers > (_.getStatusCode == 204)).either map (_.disjunction)
 
-  def issue(id: String, project: Option[Project] = None) =
-    Http(durl(url) / team / "story" / id <:< headers OK as.lift.Json).either map (_.disjunction flatMap (_.toIssue))
+  def issue(id: String) =
+    Http(durl(url) / team / "story" / id <:< headers OK as.lift.Json).asTask map (_.toIssue)
 
   // def issues(project: Project) = {
   //   implicit val throwProm = (t: Throwable) ⇒ Vector(Left(t))

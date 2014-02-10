@@ -4,8 +4,12 @@ import fr.syncissues._
 import model._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scalaz.{\/, \/-, -\/}
-import scalaz.Scalaz._
+import scalaz._
+import Scalaz._
+import scalaz.concurrent.Task
+// import scalaz.Equal
+// import scalaz.{\/, \/-, -\/}
+// import scalaz.Scalaz._
 import scalaz.std.anyVal.booleanInstance.disjunction
 
 trait IssueService {
@@ -13,28 +17,24 @@ trait IssueService {
   def password: String
   def url: String
 
-  def exists(is: Issue)(implicit e: ExecutionContext): Future[Throwable \/ Boolean] = {
-    implicit val or = disjunction
-    issues(is.project) map {
-      _.map(_ map (_.title == is.title)).fold(false.right)(_ +++ _)
-    }
+  def exists(is: Issue): Task[Boolean] = {
+    implicit val isEq: Equal[Issue] = Cord.CordEqual.contramap(_.title) 
+    issues(is.project) map (_ element is)
   }
 
-  def createIssue_?(is: Issue)(implicit e: ExecutionContext): Future[Throwable \/ Issue] =
-    exists(is) flatMap { eib ⇒
-      eib match {
-        case \/-(false) => createIssue(is)
-        case \/-(true) =>
-          Future(new Exception("Issue already exists").left)
-        case -\/(t) => t.printStackTrace; Future(t.left)
-      }
+  def createIssue_?(is: Issue): Task[Issue] =
+    exists(is) flatMap {
+      if (_)
+        Task.fail(new Exception("Issue already exists"))
+      else
+        createIssue(is)
     }
 
-  def issue(id: String, project: Option[Project]): Future[Throwable \/ Issue]
+  def issue(id: String, project: Option[Project] = None): Task[Issue]
 
-  def issues(project: Project): Future[Seq[Throwable \/ Issue]]
+  def issues(project: Project): Task[Vector[Issue]]
 
-  def createIssue(is: Issue): Future[Throwable \/ Issue]
+  def createIssue(is: Issue): Task[Issue]
 
-  def closeIssue(is: Issue): Future[Throwable \/ Issue]
+  def closeIssue(is: Issue): Task[Issue]
 }

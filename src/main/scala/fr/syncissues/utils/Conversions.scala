@@ -22,9 +22,9 @@ object Conversions {
 
   def write[T <: AnyRef](t: T)(implicit serializer: Serializer[T, String]) =  serializer.serialize(t)
 
-  def toEntity[T](json: JValue)(implicit serializer: Serializer[T, String], mf: Manifest[T]): Throwable \/ T = {
+  def toEntity[T](json: JValue)(implicit serializer: Serializer[T, String], mf: Manifest[T]):  T = {
     implicit val format = serializer.format
-    fromTryCatch(json.extract)
+    json.extract
   }
 
   implicit class ConvertibleJValue(jvalue: JValue) {
