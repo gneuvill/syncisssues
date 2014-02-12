@@ -9,4 +9,4 @@
 .worksheet/
 .cache
 .classpath
-
+*.props
