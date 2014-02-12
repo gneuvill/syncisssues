@@ -12,9 +12,9 @@ trait ProjectService {
 
   def projects: Task[Vector[Project]]
 
-  def createProject(pr: Project): Future[Throwable \/ Project]
+  def createProject(pr: Project): Task[Project]
 
-  def deleteProject(pr: Project): Future[Throwable \/ Boolean]
+  def deleteProject(pr: Project): Task[Boolean]
 
   protected def projectId(p: Project): Task[Int] =
     projects flatMap { ps ⇒

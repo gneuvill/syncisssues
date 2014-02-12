@@ -1,8 +1,9 @@
 package fr
 
 package object syncissues {
+  import scala.language.postfixOps
   import scala.concurrent._
-  import duration.Duration
+  import scala.concurrent.duration.DurationInt
   import scalaz.Semigroup
   import scalaz.concurrent.Task
 
@@ -11,6 +12,6 @@ package object syncissues {
   }
 
   implicit class MyFuture[T](fut: Future[T]) {
-    def asTask: Task[T] = Task(Await.result(fut, Duration.Inf))
+    def asTask: Task[T] = Task(Await.result(fut, 5 seconds))
   }
 }
