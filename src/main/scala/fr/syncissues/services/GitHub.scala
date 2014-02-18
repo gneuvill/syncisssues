@@ -8,7 +8,6 @@ import scalaz.concurrent.Task
 import utils.FJ._
 import utils.Conversions._
 import dispatch.{ url => durl, _ }
-import net.liftweb.json._
 import scalaz._
 import Scalaz._
 import java.util.concurrent.Executors
@@ -26,56 +25,39 @@ case class GitHub(
 
   private val headers = Map("Accept" -> "application/json", "Authorization" -> ("Basic " + auth))
 
-  private def withProject(pr: Project)(json: JValue): JValue = json ++ JField("project",
-    JObject(JField("id", JInt(pr.id)) :: JField("name", JString(pr.name)) :: Nil))
+  def projects = Http {
+    durl(url) / "users" / owner / "repos" <:< headers OK as.Projects
+  }.asTask
 
-  def projects =
-    Http(durl(url) / "users" / owner / "repos" <:< headers OK as.lift.Json)
-      .asTask
-      .map { jvalue =>
-        (for {
-          JArray(jprojects) <- jvalue
-          jproject <- jprojects
-        } yield jproject.toProject).toVector
-      }
+  def createProject(pr: Project) = Http {
+    durl(url) / "user" / "repos" << pr.toJson <:< headers OK as.Project
+  }.asTask
 
-  def createProject(pr: Project) =
-    Http(durl(url) / "user" / "repos" << write(pr) <:< headers OK as.lift.Json)
-      .asTask
-      .map(_.toProject)
-
-  def deleteProject(pr: Project) =
-    Http((durl(url) / "repos" / owner / pr.name).DELETE <:< headers >
-      (_.getStatusCode == 204)).asTask
+  def deleteProject(pr: Project) = Http {
+    (durl(url) / "repos" / owner / pr.name).DELETE <:< headers > (_.getStatusCode == 204)
+  }.asTask
 
   def issue(number: String, project: Option[Project]) =
     Task.now(project \/> (new Exception("Missing Project value"))) flatMap {
-      _.fold(Task.fail, pr ⇒
-        Http(durl(url) / "repos" / owner / pr.name / "issues" / number <:< headers OK as.lift.Json)
-          .asTask
-          .map(_.toIssue))
+      _.fold(
+        Task.fail,
+        pr ⇒ Http {
+          durl(url) / "repos" / owner / pr.name / "issues" / number <:< headers OK as.Issue
+        }.asTask)
     }
 
-  def issues(project: Project) =
-    Http(durl(url) / "repos" / owner / project.name / "issues" <:< headers <<?
-      Map("per_page" -> "100") OK as.lift.Json)
-      .asTask
-      .map { jvalue =>
-        (for {
-          JArray(jissues) <- jvalue
-          jissue <- jissues
-        } yield jissue.toIssue).toVector
-      }
+  def issues(project: Project) = Http {
+    durl(url) / "repos" / owner / project.name / "issues" <:< headers <<?
+      Map("per_page" -> "100") OK as.Issues
+  }.asTask
 
-  def createIssue(is: Issue) =
-    Http {
-      (durl(url) / "repos" / owner / is.project.name / "issues" << write(is) <:< headers) OK as.lift.Json
-    }.asTask map (_.toIssue)
+  def createIssue(is: Issue) = Http {
+    durl(url) / "repos" / owner / is.project.name / "issues" << is.toJson <:< headers OK as.Issue
+  }.asTask
 
   def closeIssue(is: Issue) =
     Http((durl(url) / "repos" / owner / is.project.name / "issues" / is.number.toString)
       .PATCH
-      .setBody(write(is.copy(state = "closed"))) <:< headers OK as.lift.Json)
+      .setBody(is.copy(state = "closed").toJson) <:< headers OK as.Issue)
       .asTask
-      .map(_.toIssue)
 }

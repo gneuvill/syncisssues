@@ -60,7 +60,7 @@ object CreateIssue {
   private object services extends RequestVar(Vector(): Seq[IPServ])
 
   def validServices(ls: Seq[IPServ]) =
-    if (services.size == 0) (hidServs, "Sélectionnez au moins un service !").failNel
+    if (ls.size == 0) (hidServs, "Sélectionnez au moins un service !").failNel
     else ls.success
 
   def validProject(projectName: String) =
@@ -157,7 +157,7 @@ object CreateIssue {
     availableServs,
     Nil,
     services.set,
-    "id" -> "servs",
+    "id" -> hidServs,
     "onclick" -> {
       SHtml.ajaxCall(
         servsVal,

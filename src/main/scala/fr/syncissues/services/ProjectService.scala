@@ -20,10 +20,8 @@ trait ProjectService {
     projects flatMap { ps ⇒
       (ps find (_.name == p.name)).cata(
         prj ⇒ Task.now(prj.id),
-        Task.fail(new Exception(s"Project ${p.name} doesn't exist")))
+        Task.fail(new Exception(s"Project ${p} doesn't exist")))
     }
-
-  //protected implicit def throwProm[E <: Throwable,T]: E ⇒ E \/ T = (e: E) ⇒ e.left
 
   protected def withProjectId[P](p: Project)(f: Int => Task[P]): Task[P] =
     projectId(p) flatMap f

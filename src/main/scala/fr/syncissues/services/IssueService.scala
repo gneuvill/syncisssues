@@ -7,9 +7,6 @@ import scala.concurrent.Future
 import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
-// import scalaz.Equal
-// import scalaz.{\/, \/-, -\/}
-// import scalaz.Scalaz._
 import scalaz.std.anyVal.booleanInstance.disjunction
 
 trait IssueService {
