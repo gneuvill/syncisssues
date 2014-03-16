@@ -16,7 +16,7 @@ class GitHubSpec extends Specification {
 
   val owner = "gneuvill"
   val repo = "testsync-test"
-  val github = GitHub(owner, "***REMOVED***", owner)
+  val github = GitHub(owner, "guessWhat", owner)
   val title = "CreateIssue1"
   val body = "Descr CreateIssue1"
 
@@ -50,13 +50,22 @@ class GitHubSpec extends Specification {
       case \/-(pr) => project = pr; true
       case -\/(t) => t.printStackTrace; false
     }
-  }
+
+  // step {
+  //   github.createProject(project).attemptRun match { //.attemptRunFor(Duration(4, TimeUnit.SECONDS)) match {
+  //     case \/-(pr) => project = pr; true
+  //     case -\/(t) => t.printStackTrace; false
+  //   }
+  // }
 
   "The createIssue method" should {
 
     "return an issue" in {
 
-      createdIssue.isRight aka "and not an error" must beTrue
+      (createdIssue match {
+        case \/-(is) ⇒ println(is); true
+        case -\/(t) ⇒ t.printStackTrace; false 
+      }) aka "and not an error" must beTrue
 
       createdIssue forall (_.title == title) aka "with the right title" must beTrue
 

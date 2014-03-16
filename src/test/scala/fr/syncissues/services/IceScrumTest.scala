@@ -12,13 +12,13 @@ import Scalaz._
 class IceScrumSpec extends Specification {
   sequential
 
-  val team = "TSI"
+//   val team = "TSI"
 
-  val project = Project(99999, "testsync")
+//   val project = Project(99999, "testsync")
 
-  "IceScrum with %s".format(team).title
+//   "IceScrum with %s".format(team).title
 
-  val icescrum = IceScrum("gneuvill", "toto", team)
+//   val icescrum = IceScrum("gneuvill", "toto", team)
 
   lazy val createdStory =
     icescrum.createIssue(Issue(title = "CreateStory1", body = "Descr CreateStory1", project = project)).attemptRun
@@ -63,11 +63,11 @@ class IceScrumSpec extends Specification {
     }
   }
 
-  "The issue method" should {
+//   "The issue method" should {
 
-    "return an Issue" in {
+//     "return an Issue" in {
 
-      iscIssue.isRight aka "and not an error" must beTrue
+//       iscIssue.isRight aka "and not an error" must beTrue
 
       iscIssue forall (_.number == 1) aka "with the right id" must beTrue
 
@@ -107,4 +107,4 @@ class IceScrumSpec extends Specification {
   //     closedStory.right forall (_.state == "closed") aka "with the right state" must beTrue
   //   }
   // }
-}
+// }
