@@ -16,7 +16,7 @@ class GitHubSpec extends Specification {
 
   val owner = "gneuvill"
   val repo = "testsync-test"
-  val github = GitHub(owner, "***REMOVED***", owner)
+  val github = GitHub(owner, "guessWhat", owner)
   val title = "CreateIssue1"
   val body = "Descr CreateIssue1"
 
