@@ -12,7 +12,7 @@ import Scalaz._
 
 class GitHubSpec extends Specification {
   sequential
-  stopOnFail
+  // stopOnFail
 
   val owner = "gneuvill"
   val repo = "testsync-test"
@@ -30,36 +30,33 @@ class GitHubSpec extends Specification {
 
   lazy val ghIssue =
     createdIssue flatMap { is =>
-        github.issue(is.number.toString, Some(is.project)).attemptRun
+        github.issue(is.number.toString, Some(project)).attemptRun
           //.attemptRunFor(Duration(4, TimeUnit.SECONDS))
     }
 
   lazy val ghIssues =
     createdIssue flatMap { is =>
-      github.issues(is.project).attemptRun //.attemptRunFor(Duration(4, TimeUnit.SECONDS))
+      github.issues(project).attemptRun //.attemptRunFor(Duration(4, TimeUnit.SECONDS))
     } fold (e => Seq(e.left), s => s map (_.right))
 
   lazy val closedIssue =
     createdIssue flatMap { is =>
-      github.closeIssue(is.copy(state = "closed")).attemptRun
+      github.closeIssue(is.copy(state = "closed", project = project)).attemptRun
         //.attemptRunFor(Duration(4, TimeUnit.SECONDS))
     }
 
-  // step {
-  //   github.createProject(project).attemptRun match { //.attemptRunFor(Duration(4, TimeUnit.SECONDS)) match {
-  //     case \/-(pr) => project = pr; true
-  //     case -\/(t) => t.printStackTrace; false
-  //   }
-  // }
+  step {
+    github.createProject(project).attemptRun match { //.attemptRunFor(Duration(4, TimeUnit.SECONDS)) match {
+      case \/-(pr) => project = pr; true
+      case -\/(t) => t.printStackTrace; false
+    }
+  }
 
   "The createIssue method" should {
 
     "return an issue" in {
 
-      (createdIssue match {
-        case \/-(is) ⇒ println(is); true
-        case -\/(t) ⇒ t.printStackTrace; false 
-      }) aka "and not an error" must beTrue
+      createdIssue.isRight aka "and not an error" must beTrue
 
       createdIssue forall (_.title == title) aka "with the right title" must beTrue
 
@@ -113,10 +110,8 @@ class GitHubSpec extends Specification {
     }
   }
 
-  // step {
-  //     github.deleteProject(project).attemptRun //.attemptRunFor(Duration(4, TimeUnit.SECONDS))
-  //     .fold (e => {e.printStackTrace; false}, b => b)
-  // }
-  
-
+  step {
+      github.deleteProject(project).attemptRun //.attemptRunFor(Duration(4, TimeUnit.SECONDS))
+      .fold (e => {e.printStackTrace; false}, b => b)
+  }
 }

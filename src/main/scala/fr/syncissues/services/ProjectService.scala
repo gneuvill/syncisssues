@@ -16,15 +16,24 @@ trait ProjectService {
 
   def deleteProject(pr: Project): Task[Boolean]
 
-  protected def projectId(p: Project): Task[Int] =
+  final def findProject(p: Project)(implicit ev: Equal[Project]): Task[Project] =
     projects flatMap { ps ⇒
-      (ps find (_.name == p.name)).cata(
-        prj ⇒ Task.now(prj.id),
+      (ps find p.===).cata(
+        prj ⇒ Task.now(prj),
         Task.fail(new Exception(s"Project ${p} doesn't exist")))
     }
 
-  protected def withProjectId[P](p: Project)(f: Int => Task[P]): Task[P] =
+  final def projectId(p: Project): Task[Int] =
+    findProject(p)(Cord.CordEqual.contramap(_.name)) map (_.id)
+
+  final def projectName(p: Project): Task[String] =
+    findProject(p)(Equal[Int].contramap(_.id)) map (_.name)
+
+  final def withProjectId[P](p: Project)(f: Int => Task[P]): Task[P] =
     projectId(p) flatMap f
+
+  final def withProjectName[P](p: Project)(f: String => Task[P]): Task[P] =
+    projectName(p) flatMap f
 }
 
 object ProjectService {

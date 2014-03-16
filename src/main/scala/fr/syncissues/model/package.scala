@@ -2,23 +2,23 @@ package fr.syncissues
 
 package object model {
   import argonaut._, Argonaut._
+  import com.ning.http.client.Response
+  import fr.syncissues.model._
+  import scalaz.\/
 
-  implicit def ProjectEncodeJson: EncodeJson[Project] =
-    jencode2L((p: Project) ⇒ (p.id, p.name))("id", "name")
-
-  implicit def IssueEncodeJson: EncodeJson[Issue] =
-    jencode5L((is: Issue) ⇒
-      (is.number,
-        is.state,
-        is.title,
-        is.body,
-        is.project))("number", "state", "title", "body", "project")
-
-  implicit class JsonProject(pr: Project) {
+  implicit class JsonProject(pr: Project)(implicit pdec: EncodeJson[Project]) {
     def toJson: String = pr.asJson.nospaces
   }
 
-  implicit class JsonIssue(is: Issue) {
+  implicit class JsonIssue(is: Issue)(implicit isdec: EncodeJson[Issue]) {
     def toJson: String = is.asJson.nospaces
+  }
+
+  type Projects = Vector[Project]
+  type Issues = Vector[Issue]
+
+  def as[T : DecodeJson](r: Response): Throwable \/ T = {
+    // println(r.getResponseBody)
+    Parse.decodeEither[T](r.getResponseBody).swapped(_ map (new Exception(_)))
   }
 }

@@ -248,7 +248,7 @@ class SyncIssues extends Observing {
             is => {
               servIssues(srv1).value += is
               NotifServer ! SuccessM("",
-                "%s has been created in %s".format(is.title, srv1.getClass.getSimpleName))
+                s"${is.title} has been created in ${srv1.getClass.getName}")
             })
       })
     }
