@@ -97,7 +97,7 @@ object IceScrum {
   implicit def IssuesCodecJson: DecodeJson[Issues] =
     DecodeJson(c ⇒ for {
       stories ← (c --\ "stories").as[Issues]
-      val temp = println(c)
+      temp = println(c)
     } yield stories)
 
   implicit def ProjectEncodeJson: EncodeJson[Project] =

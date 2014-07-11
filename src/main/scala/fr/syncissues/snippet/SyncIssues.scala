@@ -105,10 +105,9 @@ class SyncIssues extends Observing {
   val cometLoader = jq.fn.init("#comet-signal", doc)
   Javascript {
     val binder = Function { ev: $[JsAny] =>
-      jq.fn.init(".issue", doc).popover(
-        Object(
-          ("placement", "right"),
-          ("trigger", "hover")))
+      jq.fn
+        .init(".issue", doc)
+        .popover(Object(("placement", "right"), ("trigger", "hover")))
     }
     val handler = new Func0Lit(() =>
       jq.fn.init(".services-issues", doc).bind("DOMNodeInserted", binder)
@@ -147,10 +146,8 @@ class SyncIssues extends Observing {
       case seq => showWork {
         resetIssues()
         seq foreach {
-          _ match {
-            case (srv, task) =>
-              servIssues(srv)() = task.attemptRun.toList.flatten.sorted
-          }
+          case (srv, task) =>
+            servIssues(srv)() = task.attemptRun.toList.flatten.sorted
         }
       }
     }
@@ -164,8 +161,8 @@ class SyncIssues extends Observing {
       click ->> {
         if (selectedServices.value contains srv) {
           selectedServices.value -= srv
-          className() = (className.now split " ")
-            .filterNot(_ == "selected") mkString " "
+          className() =
+            (className.now split " ").filterNot(_ == "selected").mkString(" ")
         } else {
           selectedServices.value += srv
           className() = "selected" + " " + className.now
@@ -188,7 +185,7 @@ class SyncIssues extends Observing {
 
   def issuesRepeat(sv: IPServ) =
     Repeater {
-      servIssues(sv).now map { is =>
+      (servIssues(sv).now map { is =>
         ".issue" #> {
           val click = DomEventSource.click
           val buf = servSelectedIssues(sv)
@@ -205,38 +202,38 @@ class SyncIssues extends Observing {
             }
           }
           ".id *" #> is.number &
-          ".name" #> click &
-          ".name" #> className &
-          ".name *" #> is.title
+            ".name" #> click &
+            ".name" #> className &
+            ".name *" #> is.title
         } &
-        ".issue [data-title]" #> unquote(encJs(is.title)) &
-        ".issue [data-content]" #> unquote(encJs(is.body.slice(0, 300) + "..."))
-      } signal
+          ".issue [data-title]" #> unquote(encJs(is.title)) &
+          ".issue [data-content]" #> unquote(encJs(is.body.slice(0, 300) + "..."))
+      }).signal
     }
 
   val srvIssuesRepeat = Repeater {
-    srvsOpts.now map { tuple =>
+    (srvsOpts.now map { tuple =>
       ".service-or-buttons" #> {
         tuple match {
           case (Some(sv), idx) =>
             PropertyVar("className", "class")("service") andThen
-            ".name *" #> sv.getClass.getSimpleName &
-            ".issues" #>  issuesRepeat(sv) & ".sync-buttons" #> Noop
+              ".name *" #> sv.getClass.getSimpleName &
+                ".issues" #> issuesRepeat(sv) & ".sync-buttons" #> Noop
           case (None, idx) =>
             PropertyVar("className", "class")("buttons") andThen
-            ".sync-buttons *" #> {
-              ".syncright" #> Button("->") {
-                syncIssues(srvsOpts.now(idx + 1)._1.get, srvsOpts.now(idx - 1)._1.get)
+              ".sync-buttons *" #> {
+                ".syncright" #> Button("->") {
+                  syncIssues(srvsOpts.now(idx + 1)._1.get, srvsOpts.now(idx - 1)._1.get)
+                } &
+                  ".syncleft" #> Button("<-") {
+                    syncIssues(srvsOpts.now(idx - 1)._1.get, srvsOpts.now(idx + 1)._1.get)
+                  }
               } &
-              ".syncleft" #> Button("<-") {
-                syncIssues(srvsOpts.now(idx - 1)._1.get, srvsOpts.now(idx + 1)._1.get)
-              }
-            } &
-            ".name" #> Noop &
-            ".issues" #> Noop
+                ".name" #> Noop &
+                ".issues" #> Noop
         }
-      } 
-    } signal
+      }
+    }).signal
   }
 
   def syncIssues(srv1: IPServ, srv2: IPServ) = {

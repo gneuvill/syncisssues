@@ -72,14 +72,15 @@ object CreateIssue {
     else title.success
 
   def validDescr(descr: String) =
-    if (descr == "") (hidDescr, "La description ne peut être vide !").failNel
-    else descr.success
+    if (descr == "")
+      (hidDescr, "La description ne peut être vide !").failNel
+    else
+      descr.success
 
   def getAllProjects(srvs: Seq[IPServ]) =
-    srvs map (srv ⇒ (srv, srv.projects.attemptRun.toList.toVector.flatten))
+    srvs map (srv => (srv, srv.projects.attemptRun.toList.toVector.flatten))
 
-  def createIssue(servs: Seq[IPServ], projectName: String,
-    title: String, descr: String) =
+  def createIssue(servs: Seq[IPServ], projectName: String, title: String, descr: String) =
     for {
       srv <- servs
       srvPr <- allProjects.get find (t => t._1 == srv && t._2.name == projectName)

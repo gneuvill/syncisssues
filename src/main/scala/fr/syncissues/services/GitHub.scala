@@ -5,8 +5,6 @@ import java.util.concurrent.ExecutorService
 import model._
 import scala.concurrent.ExecutionContext
 import scalaz.concurrent.Task
-import utils.FJ._
-import utils.Conversions._
 import dispatch.{ url => durl, as ⇒ _, _ }
 import scalaz._
 import Scalaz._
@@ -23,7 +21,7 @@ case class GitHub(
 
   implicit val exec = ExecutionContext.fromExecutorService(executor)
 
-  private val auth = new sun.misc.BASE64Encoder().encode((user + ":" + password).getBytes())
+  private val auth = new sun.misc.BASE64Encoder().encode((user + ":" + password).getBytes)
 
   private val headers = Map("Accept" -> "application/json", "Authorization" -> ("Basic " + auth))
 
@@ -42,7 +40,7 @@ case class GitHub(
   }.asTask
 
   def issue(number: String, project: Option[Project]) =
-    Task.now(project \/> (new Exception("Missing Project value"))) flatMap {
+    Task.now(project \/> new Exception("Missing Project value")) flatMap {
       _.fold(
         Task.fail,
         pr ⇒ Http {

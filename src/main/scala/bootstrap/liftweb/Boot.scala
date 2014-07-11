@@ -20,7 +20,7 @@ import net.liftmodules.FoBo
  * to modify lift's environment
  */
 class Boot {
-  def boot {
+  def boot() = {
     // where to search snippet
     LiftRules.addToPackages("fr.syncissues")
 
@@ -49,7 +49,7 @@ class Boot {
     JQueryModule.init()
 
     // let's use reactive-web
-    Reactions.init(true)
+    Reactions.init(comet = true)
 
     // let's use FoBo
     FoBo.InitParam.ToolKit = FoBo.Bootstrap222
