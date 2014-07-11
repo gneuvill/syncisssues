@@ -6,60 +6,70 @@ import org.specs2.specification.Scope
 import dispatch._
 import fr.syncissues.model._
 import java.util.concurrent.TimeUnit
-import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scalaz._
+import Scalaz._
 
 class GitHubSpec extends Specification {
   sequential
-  stopOnFail
+  // stopOnFail
 
   val owner = "gneuvill"
-  val repo = "testsync"
-  val github = GitHub(owner, "toto", owner)
+  val repo = "testsync-test"
+  val github = GitHub(owner, "guessWhat", owner)
   val title = "CreateIssue1"
   val body = "Descr CreateIssue1"
 
-  var project = Project(999, "ghtestsync")
+  var project = Project(999, repo)
 
   "GitHub with %s/%s".format(owner, repo).title
 
-  lazy val createdIssue = Await.result(
-      github.createIssue(Issue(title = title, body = body, project = project)),
-      Duration(4, TimeUnit.SECONDS))
+  lazy val createdIssue =
+      github.createIssue(Issue(title = title, body = body, project = project)).attemptRun
+        //.attemptRunFor(Duration(4, TimeUnit.SECONDS))
 
   lazy val ghIssue =
-    createdIssue.right flatMap {
-      is => Await.result(
-        github.issue(is.number.toString, Some(is.project)),
-        Duration(4, TimeUnit.SECONDS))
+    createdIssue flatMap { is =>
+        github.issue(is.number.toString, Some(project)).attemptRun
+          //.attemptRunFor(Duration(4, TimeUnit.SECONDS))
     }
 
   lazy val ghIssues =
-    createdIssue.right map {
-      is => Await.result(github.issues(is.project), Duration(4, TimeUnit.SECONDS))
-    } fold (e => Seq(Left(e)), s => s)
+    createdIssue flatMap { is =>
+      github.issues(project).attemptRun //.attemptRunFor(Duration(4, TimeUnit.SECONDS))
+    } fold (e => Seq(e.left), s => s map (_.right))
 
   lazy val closedIssue =
-    createdIssue.right flatMap (is => Await.result(
-      github.closeIssue(is.copy(state = "closed")),
-      Duration(4, TimeUnit.SECONDS)))
+    createdIssue flatMap { is =>
+      github.closeIssue(is.copy(state = "closed", project = project)).attemptRun
+        //.attemptRunFor(Duration(4, TimeUnit.SECONDS))
+    }
 
   step {
-    Await.result(github.createProject(project), Duration(4, TimeUnit.SECONDS)) match {
-      case Right(pr) => project = pr; true
-      case Left(t) => t.printStackTrace; false
+    github.createProject(project).attemptRun match { //.attemptRunFor(Duration(4, TimeUnit.SECONDS)) match {
+      case \/-(pr) => project = pr; true
+      case -\/(t) => t.printStackTrace; false
     }
-  }
+
+  // step {
+  //   github.createProject(project).attemptRun match { //.attemptRunFor(Duration(4, TimeUnit.SECONDS)) match {
+  //     case \/-(pr) => project = pr; true
+  //     case -\/(t) => t.printStackTrace; false
+  //   }
+  // }
 
   "The createIssue method" should {
 
     "return an issue" in {
 
-      createdIssue.isRight aka "and not an error" must beTrue
+      (createdIssue match {
+        case \/-(is) ⇒ println(is); true
+        case -\/(t) ⇒ t.printStackTrace; false 
+      }) aka "and not an error" must beTrue
 
-      createdIssue.right forall (_.title == title) aka "with the right title" must beTrue
+      createdIssue forall (_.title == title) aka "with the right title" must beTrue
 
-      createdIssue.right forall (_.body == body) aka "with the right body" must beTrue
+      createdIssue forall (_.body == body) aka "with the right body" must beTrue
     }
   }
 
@@ -69,11 +79,11 @@ class GitHubSpec extends Specification {
 
       ghIssue.isRight aka "and not an error" must beTrue
 
-      ghIssue.right forall (_.number == 1) aka "with the right id" must beTrue
+      ghIssue forall (_.number == 1) aka "with the right id" must beTrue
 
-      ghIssue.right forall (_.title == title) aka "with the right title" must beTrue
+      ghIssue forall (_.title == title) aka "with the right title" must beTrue
 
-      ghIssue.right forall (_.body == body) aka "with the right body" must beTrue
+      ghIssue forall (_.body == body) aka "with the right body" must beTrue
     }
   }
 
@@ -95,24 +105,22 @@ class GitHubSpec extends Specification {
 
       val rightId =
         for {
-          cli <- closedIssue.right
-          cri <- createdIssue.right
+          cli <- closedIssue
+          cri <- createdIssue
         } yield cli.number == cri.number 
 
-      rightId.right forall (_ == true) aka "with the right id" must beTrue
+      rightId forall (_ == true) aka "with the right id" must beTrue
 
-      closedIssue.right forall (_.title == title) aka "with the right title" must beTrue
+      closedIssue forall (_.title == title) aka "with the right title" must beTrue
 
-      closedIssue.right forall (_.body == body) aka "with the right body" must beTrue
+      closedIssue forall (_.body == body) aka "with the right body" must beTrue
 
-      closedIssue.right forall (_.state == "closed") aka "with the right state" must beTrue
+      closedIssue forall (_.state == "closed") aka "with the right state" must beTrue
     }
   }
 
   step {
-    Await
-      .result(github.deleteProject(project), Duration(4, TimeUnit.SECONDS))
+      github.deleteProject(project).attemptRun //.attemptRunFor(Duration(4, TimeUnit.SECONDS))
       .fold (e => {e.printStackTrace; false}, b => b)
-  }  
-
+  }
 }

@@ -20,18 +20,6 @@ object Conversions {
 
   implicit def BigIntegerToInt(bi: BigInteger) = bi.intValue
 
-  def write[T <: AnyRef](t: T)(implicit serializer: Serializer[T, String]) =  serializer.serialize(t)
-
-  def toEntity[T](json: JValue)(implicit serializer: Serializer[T, String], mf: Manifest[T]): Throwable \/ T = {
-    implicit val format = serializer.format
-    fromTryCatch(json.extract)
-  }
-
-  implicit class ConvertibleJValue(jvalue: JValue) {
-    def toProject(implicit serializer: Serializer[Project, String]) = toEntity[Project](jvalue)
-    def toIssue(implicit serializer: Serializer[Issue, String]) = toEntity[Issue](jvalue)
-  }
-
   implicit class ConvertibleProjectData(pdata: ProjectData) {
     def toProject = Project(pdata.getId, pdata.getName)
   }

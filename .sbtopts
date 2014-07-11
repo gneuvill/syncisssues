@@ -1,0 +1,1 @@
+-J-Dfile.encoding=UTF8 -J-XX:+UseConcMarkSweepGC -J-XX:+CMSClassUnloadingEnabled -J-Xms3512m -J-Xmx3512m -J-XX:MaxPermSize=1024m -J-XX:ReservedCodeCacheSize=512m
